@@ -9,11 +9,11 @@ nextflow.enable.dsl=2
 def cat_fastq_options          = modules['cat_fastq']
 if (!params.save_merged_fastq) { cat_fastq_options['publish_files'] = false }
 
-include { CAT_FASTQ } from 'modules/nf-core/modules/cat/fastq/main' addParams( options: cat_fastq_options )
-include { initOptions; saveFiles; getSoftwareName; getProcessName } from 'modules/nf-core_rnaseq/functions'
-include { QUALIMAP_RNASEQ } from 'modules/nf-core/modules/qualimap/rnaseq/main' addParams( options: modules['qualimap_rnaseq'] )
+include { CAT_FASTQ } from './modules/nf-core/modules/cat/fastq/main' addParams( options: cat_fastq_options )
+include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
+include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main' addParams( options: modules['qualimap_rnaseq'] )
 
-## check mandatory params
+// check mandatory params
 if (!params.input) { exit 1, 'Input samplesheet not specified!' }
 if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
 if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
