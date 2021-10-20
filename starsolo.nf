@@ -64,8 +64,9 @@ process STARSOLO {
 
     samtools index *.bam
 
-    gzip ${prefix}\.Solo.out/Gene/raw/*
-    gzip ${prefix}\.Solo.out/Gene/filtered/*
+    // ntfs fuseblk, gzip operation permission issue, use gzip -c instead
+    for i in ${prefix}.Solo.out/Gene/raw/*; do gzip -c \$i > \${i}.gz; done
+    for i in ${prefix}.Solo.out/Gene/filtered/*; do gzip -c \$i > \${i}.gz; done
 
     cat <<-END_VERSIONS > versions.yml
     ${getProcessName(task.process)}:
