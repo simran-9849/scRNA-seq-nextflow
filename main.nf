@@ -6,12 +6,10 @@ nextflow.enable.dsl=2
 
 // NF-CORE MODULES
 
-def cat_fastq_options          = modules['cat_fastq']
-if (!params.save_merged_fastq) { cat_fastq_options['publish_files'] = false }
-
-include { CAT_FASTQ } from './modules/nf-core/modules/cat/fastq/main' addParams( options: cat_fastq_options )
+include { CAT_FASTQ } from './cat_fastq' addParams( options: ['publish_files': false] )
+include { STARSOLO } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
-include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main' addParams( options: modules['qualimap_rnaseq'] )
+include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 
 // check mandatory params
 if (!params.input) { exit 1, 'Input samplesheet not specified!' }
@@ -23,74 +21,19 @@ def create_fastq_channel(LinkedHashMap row) {
     meta.id           = row.sample
 
     def array = []
-    if (!file(row.bc_read).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Barcode read FastQ file does not exist!\n${row.bc_read}"
+    if (!file(row.fastq_1).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.bc_read}"
     }
 
-    if (!file(row.cDNA_read).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> cDNA read FastQ file does not exist!\n${row.cDNA_read}"
+    if (!file(row.fastq_2).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.cDNA_read}"
     }
-    // Ensure bc_read is the first fastq
-    array = [ meta, [ file(row.bc_read), file(row.cDNA_read) ] ]
+
+    array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
 
     return array
 }
 
-process STARSOLO {
-    tag "$meta.id"
-    label 'process_high'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
-
-    input:
-    tuple val(meta), path(reads)
-    path index
-    path gtf
-    path whitelist
-
-    output:
-    tuple val(meta), path('*d.out.bam')       , emit: bam
-    tuple val(meta), path('*d.out.bam.bai')   , emit: bai
-    tuple val(meta), path('*Log.final.out')   , emit: log_final
-    tuple val(meta), path('*Log.out')         , emit: log_out
-    tuple val(meta), path('*Log.progress.out'), emit: log_progress
-    tuple val(meta), path('*Solo.out/Gene')   , emit: solo_out
-    path "versions.yml"                       , emit: versions
-
-    tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
-    tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
-    tuple val(meta), path('*Aligned.unsort.out.bam') , optional:true, emit: bam_unsorted
-    tuple val(meta), path('*fastq.gz')               , optional:true, emit: fastq
-    tuple val(meta), path('*.tab')                   , optional:true, emit: tab
-
-
-    script:
-    def prefix     = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    """
-    STAR -- runThreadN $task.cpus \\
-         --genomeDir $index \\
-         --sjdbGTFfile $gtf \\
-         --readFilesIn $reads \\
-         --outFileNamePrefix ${prefix}. \\
-         --soloCBstart $params.soloCBstart \\
-         --soloCBlen $params.soloCBlen \\
-         --soloUMIstart $params.soloUMIstart \\
-         --soloUMIlen $params.soloUMIlen \\
-         --soloCBwhitelist $params.whitelist \\
-         --soloBarcodeReadLength $params.soloBarcodeReadLength \\
-         --readFilesCommand zcat \\
-         --soloType $params.soloType \\
-         --clipAdapterType $params.clipAdapterType \\
-         --outFilterScoreMin $params.outFilterScoreMin \\
-         --soloCBmatchWLtype $params.soloCBmatchWLtype \\
-         --soloUMIfiltering $params.soloUMIfiltering \\
-         --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-         --outSAMtype BAM SortedByCoordinate \\
-
-    samtools index *.bam
-    """
-}
 
 workflow {
     Channel
@@ -113,29 +56,42 @@ workflow {
 
     // MODULE: Concatenate FastQ files from same sample if required
 
+    ch_read1 = Channel.empty()
+    ch_read2 = Channel.empty()
+
     CAT_FASTQ (
         ch_fastq.multiple
     )
-    .reads
-    .mix(ch_fastq.single)
-    .set { ch_cat_fastq }
+    ch_read1 = CAT_FASTQ.out.read1
+    ch_read2 = CAT_FASTQ.out.read2
 
     ch_genomeDir = Channel.fromPath(params.genomeDir)
     ch_genomeGTF = Channel.fromPath(params.genomeGTF)
     ch_whitelist = Channel.fromPath(params.whitelist)
 
-    if(params.trimReads){}
+    // if(params.trimReads){}
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_star_multiqc               = Channel.empty()
 
-    STARSOLO(
-        ch_cat_fastq
-        ch_genomeDir
-        ch_genomeGTF
-        path(params.whitelist)
-    )
+    if(params.bc_read == "fastq_1"){
+        STARSOLO(
+            ch_read2,
+            ch_read1,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_whitelist
+        )
+    }else{
+        STARSOLO(
+            ch_read1,
+            ch_read2,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_whitelist
+        )
+    }
 
     ch_genome_bam                 = STARSOLO.out.bam
     ch_genome_bam_index           = STARSOLO.out.bai
