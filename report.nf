@@ -1,16 +1,19 @@
 #! /usr/bin/env nextflow
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 
+params.options = [:]
+options        = initOptions(params.options)
+
 process REPORT{
     tag "$meta.id"
     label 'process_low'
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'merged_fastq', meta:meta, publish_by_meta:['id']) }
+        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'report', meta:meta, publish_by_meta:['id']) }
 
     input:
-    tuple val(meta), path(qualimap_outdir)
     tuple val(meta), path(starsolo_outdir)
+    tuple val(meta), path(qualimap_outdir)
 
     output:
     tuple val(meta), path("*report.html"), emit: report
