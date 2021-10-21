@@ -46,12 +46,9 @@ workflow {
             // meta.id = meta.id.split('_')[0..-2].join('_')
             [ meta, fastq ] }
     .groupTuple(by: [0])
-    .branch {
+    .map {
         meta, fastq ->
-            single  : fastq.size() == 1
-                return [ meta, fastq.flatten() ]
-            multiple: fastq.size() > 1
-                return [ meta, fastq.flatten() ]
+            return [ meta, fastq.flatten() ]
     }
     .set { ch_fastq }
 
@@ -61,7 +58,7 @@ workflow {
     ch_read2 = Channel.empty()
 
     CAT_FASTQ (
-        ch_fastq.multiple
+        ch_fastq
     )
     ch_read1 = CAT_FASTQ.out.read1
     ch_read2 = CAT_FASTQ.out.read2

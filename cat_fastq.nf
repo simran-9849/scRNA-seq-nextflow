@@ -29,7 +29,7 @@ process CAT_FASTQ {
     script:
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
     def readList = reads.collect{ it.toString() }
-    if (readList.size > 2) {
+    if (readList.size >= 2) {
         def read1 = []
         def read2 = []
         readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
