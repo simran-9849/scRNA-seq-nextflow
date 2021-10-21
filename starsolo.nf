@@ -64,7 +64,7 @@ process STARSOLO {
 
     samtools index *.bam
 
-    // ntfs fuseblk, gzip operation permission issue, use gzip -c instead
+    ## ntfs fuseblk, gzip operation permission issue, use gzip -c instead
     for i in ${prefix}.Solo.out/Gene/raw/*; do gzip -c \$i > \${i}.gz; done
     for i in ${prefix}.Solo.out/Gene/filtered/*; do gzip -c \$i > \${i}.gz; done
 
