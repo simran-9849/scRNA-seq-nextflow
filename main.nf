@@ -43,7 +43,7 @@ workflow {
     .map{ create_fastq_channel(it) }
     .map {
         meta, fastq ->
-            meta.id = meta.id.split('_')[0..-2].join('_')
+            // meta.id = meta.id.split('_')[0..-2].join('_')
             [ meta, fastq ] }
     .groupTuple(by: [0])
     .branch {
