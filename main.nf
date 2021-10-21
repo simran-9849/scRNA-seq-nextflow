@@ -10,6 +10,7 @@ include { CAT_FASTQ } from './cat_fastq' addParams( options: ['publish_files': f
 include { STARSOLO } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
+include { REPORT } from "./report"
 
 // check mandatory params
 if (!params.input) { exit 1, 'Input samplesheet not specified!' }
@@ -73,6 +74,7 @@ workflow {
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
+    ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
 
     if(params.bc_read == "fastq_1"){
@@ -95,11 +97,16 @@ workflow {
 
     ch_genome_bam                 = STARSOLO.out.bam
     ch_genome_bam_index           = STARSOLO.out.bai
-
+    ch_starsolo_out               = STARSOLO.out.solo_out
     ch_qualimap_multiqc           = Channel.empty()
     QUALIMAP_RNASEQ(
         ch_genome_bam,
         ch_genomeGTF
     )
     ch_qualimap_multiqc = QUALIMAP_RNASEQ.out.results
+
+    REPORT(
+        ch_starsolo_out,
+        ch_qualimap_multiqc
+    )
 }

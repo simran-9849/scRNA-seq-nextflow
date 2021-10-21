@@ -1,0 +1,145 @@
+---
+title: "Thunderbio Single Cell Sequencing Report"
+date: "`r Sys.Date()`"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    orientation: rows
+    theme: cosmo
+params:
+  qualimap_out : "rnaseq_qc_results.txt"
+  starsolo_out : "Summary.csv"
+  starsolo_bc : "UMIperCellSorted.txt"
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(scales)
+library(flexdashboard)
+library(htmlwidgets)
+library(plotly)
+library(kableExtra)
+
+starsolo_summary <- read_csv(params$starsolo_out,
+                             col_names = c("item", "value")) %>%
+                             mutate(
+                                 value = case_when(
+                                 value > 1 ~ comma(value, accuracy = 1),
+                                 value <=1 ~ percent(value)
+                                 )
+                             )
+exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
+exon_ratio <- system(exon_cmd, intern = TRUE)
+
+intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
+intron_ratio <- system(intron_cmd, intern = TRUE)
+```
+
+Row
+----------
+
+### Estimated Number of Cells
+
+```{r}
+cellNum <- starsolo_summary %>% 
+    filter(item == "Estimated Number of Cells") %>% 
+    pull(value)
+valueBox(cellNum, icon = "fa-circle-notch", color = "info")
+```
+
+### Mean Reads per Cell
+
+```{r}
+readsMean <- starsolo_summary %>% 
+    filter(item == "Mean Reads per Cell") %>% 
+    pull(value)
+valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
+```
+
+### Median Reads per Cell
+
+```{r}
+readsMedian <- starsolo_summary %>% 
+    filter(item == "Median Reads per Cell") %>% 
+    pull(value)
+valueBox(readsMedian, icon = "fa-barcode", color = "warning")
+```
+
+Row
+----------
+
+### Cell Stats
+
+```{r}
+starsolo_summary %>% 
+    filter(item %in% c("Estimated Number of Cells",
+                       "Reads in Cells Mapped to Unique Genes",
+                       "Fraction of Reads in Cells",
+                       "Mean Reads per Cell",
+                       "Median Reads per Cell",
+                       "UMIs in Cells",
+                       "Mean UMI per Cell",
+                       "Median UMI per Cell",
+                       "Mean Genes per Cell",
+                       "Median Genes per Cell",
+                       "Total Genes Detected")) %>%
+    kbl() %>% kable_paper("hover")
+```
+
+### Knee Plot
+
+```{r}
+umi_dist <- read_tsv(params$starsolo_bc, col_names =c("UMI"))
+cellNum <- str_replace(cellNum, ",", "") %>% as.numeric()
+umi_dist <-  umi_dist %>%
+    mutate(
+        cell = c(1:nrow(umi_dist)),
+        group = case_when(
+            cell <= cellNum ~ "identified",
+            TRUE ~ "background"
+            )
+        )
+
+ggplot(umi_dist, aes(x=cell, y=UMI, color = group)) + 
+    geom_point(alpha = 0.8) +
+    geom_vline(xintercept = cellNum, 
+               linetype = "dashed", color = "grey") +
+    scale_x_log10(n.breaks = 8, labels = scales::label_number_si()) + 
+    scale_y_log10(n.breaks = 5, labels = scales::label_number_si()) +
+    scale_color_manual(values =c("grey", "royalblue")) +
+    xlab("Cell") + ylab("UMI") +
+    theme_bw() + 
+    theme(panel.grid = element_blank(), 
+          axis.text = element_text(color="black"),
+          legend.position = "none")
+```
+
+Row
+----------
+
+### Sequencing Stats
+
+```{r}
+starsolo_summary %>% 
+    filter(item %in% c("Number of Reads",
+                       "Reads With Valid Barcodes",
+                       "Sequencing Saturation",
+                       "Q30 Bases in CB+UMI",
+                       "Q30 Bases in RNA read",
+                       "Total Genes Detected")) %>%
+    kbl() %>% kable_paper("hover")
+                                        
+```
+
+### Mapping Stats
+
+```{r}
+starsolo_summary %>% 
+    filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
+                       "Reads Mapped to Genome: Unique",
+                       "Reads Mapped to Transcriptome: Unique+Multipe Genes",
+                       "Reads Mapped to Transcriptome: Unique Genes")) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>% 
+    kbl() %>% kable_paper("hover")
+```
