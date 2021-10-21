@@ -8,8 +8,6 @@ process REPORT{
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'merged_fastq', meta:meta, publish_by_meta:['id']) }
 
-    conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
-
     input:
     tuple val(meta), path(qualimap_outdir)
     tuple val(meta), path(starsolo_outdir)
