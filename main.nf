@@ -6,7 +6,7 @@ nextflow.enable.dsl=2
 
 // NF-CORE MODULES
 
-include { CAT_FASTQ } from './cat_fastq' addParams( options: ['publish_files': false] )
+//include { CAT_FASTQ } from './cat_fastq' addParams( options: ['publish_files': false] )
 include { STARSOLO } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
@@ -54,15 +54,6 @@ workflow {
 
     // MODULE: Concatenate FastQ files from same sample if required
 
-    ch_read1 = Channel.empty()
-    ch_read2 = Channel.empty()
-
-    CAT_FASTQ (
-        ch_fastq
-    )
-    ch_read1 = CAT_FASTQ.out.read1
-    ch_read2 = CAT_FASTQ.out.read2
-
     ch_genomeDir = Channel.fromPath(params.genomeDir)
     ch_genomeGTF = Channel.fromPath(params.genomeGTF)
     ch_whitelist = Channel.fromPath(params.whitelist)
@@ -74,23 +65,12 @@ workflow {
     ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
 
-    if(params.bc_read == "fastq_1"){
-        STARSOLO(
-            ch_read2,
-            ch_read1,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_whitelist
-        )
-    }else{
-        STARSOLO(
-            ch_read1,
-            ch_read2,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_whitelist
-        )
-    }
+    STARSOLO(
+        ch_fastq,
+        ch_genomeDir,
+        ch_genomeGTF,
+        ch_whitelist
+    )
 
     ch_genome_bam                 = STARSOLO.out.bam
     ch_genome_bam_index           = STARSOLO.out.bai
