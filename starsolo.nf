@@ -58,7 +58,7 @@ process STARSOLO {
         bc_read = read2.sort().join(",")
     }
     """
-    STAR -- runThreadN $task.cpus \\
+    STAR --runThreadN $task.cpus \\
          --genomeDir $index \\
          --sjdbGTFfile $gtf \\
          --soloBarcodeMate 0 \\
