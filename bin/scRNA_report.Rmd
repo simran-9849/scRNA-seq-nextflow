@@ -73,8 +73,8 @@ Row
 ```{r}
 starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
-                       "Reads in Cells Mapped to Unique Genes",
-                       "Fraction of Reads in Cells",
+                       "Unique Reads in Cells Mapped to Gene",
+                       "Fraction of Unique Reads in Cells",
                        "Mean Reads per Cell",
                        "Median Reads per Cell",
                        "UMIs in Cells",
@@ -137,8 +137,8 @@ starsolo_summary %>%
 starsolo_summary %>% 
     filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
-                       "Reads Mapped to Transcriptome: Unique+Multipe Genes",
-                       "Reads Mapped to Transcriptome: Unique Genes")) %>%
+                       "Reads Mapped to Gene: Unique+Multipe Gene",
+                       "Reads Mapped to Gene: Unique Gene")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>% 
     kbl() %>% kable_paper("hover")
