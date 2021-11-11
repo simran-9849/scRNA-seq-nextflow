@@ -12,7 +12,8 @@ process STARSOLO {
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
     input:
-    tuple val(meta), path(reads)
+    tuple val(meta), path(cDNA_read)
+    tuple val(meta), path(bc_read)
     path index
     path gtf
     path whitelist
@@ -38,25 +39,6 @@ process STARSOLO {
     //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
-    // Assign read1 read2 to different list, code from cat_fastq
-    def readList = reads.collect{ it.toString() }
-    def read1 = []
-    def read2 = []
-    def cDNA_read = ""
-    def bc_read = ""
-    if (readList.size >= 2) {
-        readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
-    }else{
-        exit 1, 'Please provide both the read1 and the read2'
-    }
-
-    if ( params.bc_read == "fastq_1" ){
-        cDNA_read = read2.sort().join(",")
-        bc_read = read1.sort().join(",")
-    }else{
-        cDNA_read = read1.sort().join(",")
-        bc_read = read2.sort().join(",")
-    }
     """
     STAR --runThreadN $task.cpus \\
          --genomeDir $index \\
@@ -83,8 +65,10 @@ process STARSOLO {
     samtools index *.bam
 
     ## ntfs fuseblk, gzip operation permission issue, use gzip -c instead
-    for i in ${prefix}.Solo.out/Gene/raw/*; do gzip -c \$i > \${i}.gz; done
-    for i in ${prefix}.Solo.out/Gene/filtered/*; do gzip -c \$i > \${i}.gz; done
+    ##for i in ${prefix}.Solo.out/Gene/raw/*; do gzip -c \$i > \${i}.gz; done
+    ##for i in ${prefix}.Solo.out/Gene/filtered/*; do gzip -c \$i > \${i}.gz; done
+    gzip ${prefix}.Solo.out/Gene/raw/*
+    gzip ${prefix}.Solo.out/Gene/filtered/*
 
     cat <<-END_VERSIONS > versions.yml
     ${getProcessName(task.process)}:

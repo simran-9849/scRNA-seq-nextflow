@@ -4,7 +4,7 @@ include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modu
 params.options = [:]
 options        = initOptions(params.options)
 
-process CAT_FASTQ {
+process CAT_TRIM_FASTQ {
     tag "$meta.id"
     label 'process_low'
     publishDir "${params.outdir}",
@@ -22,8 +22,8 @@ process CAT_FASTQ {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*_1.merged.fastq.gz"), emit: read1
-    tuple val(meta), path("*_2.merged.fastq.gz"), emit: read2
+    tuple val(meta), path("*_1.trimmed.fq.gz"), emit: read1
+    tuple val(meta), path("*_2.trimmed.fq.gz"), emit: read2
     path "versions.yml"                       , emit: versions
 
     script:
@@ -34,8 +34,24 @@ process CAT_FASTQ {
         def read2 = []
         readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
         """
-        cat ${read1.sort().join(' ')} > ${prefix}_1.merged.fastq.gz
-        cat ${read2.sort().join(' ')} > ${prefix}_2.merged.fastq.gz
+        cat ${read1.sort().join(' ')} > ${prefix}_1.merged.fq.gz
+        cat ${read2.sort().join(' ')} > ${prefix}_2.merged.fq.gz
+
+        cutadapt -m $params.trimLength \\
+        -j $task.cpus \\
+        -q 30 \\
+        -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC \\
+        -g TCTTTCCCTACACGACGCTCTTCCGATCT \\
+        -A AGATCGGAAGAGCGTCGTGTAGGGAAAGA  \\
+        -A "T{50}" \\
+        -G GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \\
+        -G AAGCAGTGGTATCAACGCAGAGTACATGGG \\
+        -o ${prefix}_1.trimmed.fq.gz \\
+        -p ${prefix}_2.trimmed.fq.gz \\
+        ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
+
+        ## remove merged fq.gz
+        rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
 
         cat <<-END_VERSIONS > versions.yml
         ${getProcessName(task.process)}:
