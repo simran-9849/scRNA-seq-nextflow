@@ -1,5 +1,5 @@
 // Import generic module functions
-include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
+include { initOptions; saveFiles; getSoftwareName; getProcessName; getPathFromList } from './modules/nf-core_rnaseq/functions'
 
 params.options = [:]
 options        = initOptions(params.options)
@@ -9,7 +9,13 @@ process CAT_TRIM_FASTQ {
     label 'process_low'
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'merged_fastq', meta:meta, publish_by_meta:['id']) }
+        saveAs: { filename ->
+            if(filename=~/\.(fq|fastq)\.gz/ || filename=~/versions.yml/){
+                return null // don't publish fastq file
+            }else{
+                return "${getPathFromList(['cutqc'])}/$filename"
+            }
+        }
 
     // conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
     // if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -22,8 +28,9 @@ process CAT_TRIM_FASTQ {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("*_1.trimmed.fq.gz"), emit: read1
-    tuple val(meta), path("*_2.trimmed.fq.gz"), emit: read2
+    tuple val(meta), path("*_1.merged.trimmed.fq.gz"), emit: read1
+    tuple val(meta), path("*_2.merged.trimmed.fq.gz"), emit: read2
+    tuple val(meta), path("*_cutqc_report.html"), emit: cutqc_report
     path "versions.yml"                       , emit: versions
 
     script:
@@ -37,7 +44,10 @@ process CAT_TRIM_FASTQ {
         cat ${read1.sort().join(' ')} > ${prefix}_1.merged.fq.gz
         cat ${read2.sort().join(' ')} > ${prefix}_2.merged.fq.gz
 
-        cutadapt -m $params.trimLength \\
+        cutqc.sh ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz \\
+        ${prefix}_cutqc_report.html \\
+        $baseDir/bin/fastqc_report.Rmd \\
+        -m $params.trimLength \\
         -j $task.cpus \\
         -q 30 \\
         -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC \\
@@ -46,9 +56,6 @@ process CAT_TRIM_FASTQ {
         -A "T{30}" \\
         -G GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \\
         -G AAGCAGTGGTATCAACGCAGAGTACATGGG \\
-        -o ${prefix}_1.trimmed.fq.gz \\
-        -p ${prefix}_2.trimmed.fq.gz \\
-        ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
 
         ## remove merged fq.gz
         rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
