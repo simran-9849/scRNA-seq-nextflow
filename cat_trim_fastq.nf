@@ -10,12 +10,14 @@ process CAT_TRIM_FASTQ {
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
         saveAs: { filename ->
-            if(filename=~/\.(fq|fastq)\.gz/ || filename=~/versions.yml/){
-                return null // don't publish fastq file
-            }else{
-                return "${getPathFromList(['cutqc'])}/$filename"
-            }
+        if(filename=~/versions.yml/){
+            return null
+        }else if(!params.save_merged_fastq && filename=~/\.(fq|fastq)\.gz/){
+            return null // don't publish fastq file
+        }else{
+            return "${getPathFromList(['cutqc'])}/$filename"
         }
+    }
 
     // conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
     // if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {

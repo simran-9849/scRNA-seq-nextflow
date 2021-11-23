@@ -80,9 +80,9 @@ starsolo_summary %>%
                        "UMIs in Cells",
                        "Mean UMI per Cell",
                        "Median UMI per Cell",
-                       "Mean Genes per Cell",
-                       "Median Genes per Cell",
-                       "Total Genes Detected")) %>%
+                       "Mean Gene per Cell",
+                       "Median Gene per Cell",
+                       "Total Gene Detected")) %>%
     kbl() %>% kable_paper("hover")
 ```
 
@@ -126,7 +126,7 @@ starsolo_summary %>%
                        "Sequencing Saturation",
                        "Q30 Bases in CB+UMI",
                        "Q30 Bases in RNA read",
-                       "Total Genes Detected")) %>%
+                       "Total Gene Detected")) %>%
     kbl() %>% kable_paper("hover")
                                         
 ```
