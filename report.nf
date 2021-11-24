@@ -20,7 +20,7 @@ process REPORT{
 
     script:
     """
-    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(starsolo_out = "$starsolo_outdir/Summary.csv", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", starsolo_bc = "$starsolo_outdir/UMIperCellSorted.txt"), knit_root_dir=getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
+    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(starsolo_out = "$starsolo_outdir/Summary.csv", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", starsolo_bc = "$starsolo_outdir/UMIperCellSorted.txt"), intermediates_dir = getwd(), knit_root_dir = getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
 
     cat <<-END_VERSIONS > versions.yml
     ${getProcessName(task.process)}:
