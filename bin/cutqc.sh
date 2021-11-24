@@ -35,12 +35,12 @@ read2_trimmed=${read2_fileName%%.f*q.gz}".trimmed.fq.gz"
 ##cutadapt_cmd=$(mktemp -p ./ cutadapt.XXXXXXXXXX)
 cutadapt_cmd="cutadapt_command"
 ## conduct fastqc for origin reads
-fastqc -t 2 --extract --nogroup -o ./ $inputR1 $inputR2
+fastqc -t 4 --extract --nogroup -o ./ $inputR1 $inputR2
 ## cutadapt
 echo "cutadapt $@ -o $read1_trimmed -p $read2_trimmed $inputR1 $inputR2" > $cutadapt_cmd
 cutadapt $@ -o $read1_trimmed -p $read2_trimmed $inputR1 $inputR2
 ## conduct fastqc for trimmed reads
-fastqc -t 2 --extract --nogroup -o ./ $read1_trimmed $read2_trimmed
+fastqc -t 4 --extract --nogroup -o ./ $read1_trimmed $read2_trimmed
 
 fastqc_read1_before=${read1_fileName%%.f*q.gz}"_fastqc"
 fastqc_read1_after=${read1_trimmed%%.f*q.gz}"_fastqc"
