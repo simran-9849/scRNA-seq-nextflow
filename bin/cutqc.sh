@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 
+set -euo pipefail 
+
 ## Usage:
 usage="cutqc.sh in_read1.fq.gz in_read2.fq.gz out_report.html path/to/Rmd [cutadapt_option]
 
