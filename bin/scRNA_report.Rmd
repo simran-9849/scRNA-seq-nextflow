@@ -1,12 +1,15 @@
 ---
-title: "Thunderbio Single Cell Sequencing Report"
+title: "Thunderbio scRNA-seq Report"
 date: "`r Sys.Date()`"
 output: 
   flexdashboard::flex_dashboard:
     vertical_layout: scroll
     orientation: rows
-    theme: cosmo
+    theme: 
+      bootswatch: cosmo
+      version: 5
 params:
+  sampleName : "sampleName"
   qualimap_out : "rnaseq_qc_results.txt"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
@@ -34,6 +37,8 @@ exon_ratio <- system(exon_cmd, intern = TRUE)
 intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
 intron_ratio <- system(intron_cmd, intern = TRUE)
 ```
+
+<h2 style="margin-top: 0.5rem; font-weight: bold;">Sample: `r params$sampleName`</h2>
 
 Row
 ----------
