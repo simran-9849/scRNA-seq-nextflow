@@ -51,13 +51,12 @@ process CAT_TRIM_FASTQ {
         $baseDir/bin/fastqc_report.Rmd \\
         -m $params.trimLength \\
         -j $task.cpus \\
-        -q 30 \\
-        -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC \\
-        -g TCTTTCCCTACACGACGCTCTTCCGATCT \\
-        -A AGATCGGAAGAGCGTCGTGTAGGGAAAGA  \\
+        -q 0 \\
+        -Q 30,30 \\
+        -A GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT...AGATCGGAAGAGCGTCGTGTAGGGAAAGA  \\
         -A "T{30}" \\
-        -G GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \\
         -G AAGCAGTGGTATCAACGCAGAGTACATGGG \\
+        -n 3
 
         ## remove merged fq.gz
         rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
