@@ -39,40 +39,74 @@ process STARSOLO {
     //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
-    """
-    STAR --runThreadN $task.cpus \\
-         --genomeDir $index \\
-         --sjdbGTFfile $gtf \\
-         --soloBarcodeMate 0 \\
-         --readFilesIn $cDNA_read $bc_read \\
-         --outFileNamePrefix ${prefix}. \\
-         --soloCBstart $params.soloCBstart \\
-         --soloCBlen $params.soloCBlen \\
-         --soloUMIstart $params.soloUMIstart \\
-         --soloUMIlen $params.soloUMIlen \\
-         --soloCBwhitelist $params.whitelist \\
-         --soloBarcodeReadLength 0 \\
-         --readFilesCommand zcat \\
-         --soloType $params.soloType \\
-         --clipAdapterType $params.clipAdapterType \\
-         --outFilterScoreMin $params.outFilterScoreMin \\
-         --soloCBmatchWLtype $params.soloCBmatchWLtype \\
-         --soloUMIfiltering $params.soloUMIfiltering \\
-         --soloUMIdedup $params.soloUMIdedup \\
-         --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-         --outSAMtype BAM SortedByCoordinate \\
 
-    samtools index *.bam
+    if(params.soloType == "CB_UMI_Complex"){
+        """
+        STAR --runThreadN $task.cpus \\
+        --genomeDir $index \\
+        --sjdbGTFfile $gtf \\
+        --soloBarcodeMate 0 \\
+        --readFilesIn $cDNA_read $bc_read \\
+        --soloBarcodeReadLength 0 \\
+        --readFilesCommand zcat \\
+        --outFileNamePrefix ${prefix}. \\
+        --soloType $params.soloType \\
+        --soloCBposition $params.complexCBposition \\
+        --soloUMIposition $params.complexUMIposition \\
+        --soloAdapterSequence $params.complexAdapterSequence \\
+        --soloAdapterMismatchesNmax $params.complexAdapterMismatchesNmax \\
+        --soloCBwhitelist $params.whitelist $params.whitelist2 \\
+        --clipAdapterType $params.clipAdapterType \\
+        --outFilterScoreMin $params.outFilterScoreMin \\
+        --soloCBmatchWLtype $params.soloCBmatchWLtype \\
+        --soloUMIfiltering $params.soloUMIfiltering \\
+        --soloUMIdedup $params.soloUMIdedup \\
+        --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
+        --outSAMtype BAM SortedByCoordinate \\
 
-    ## ntfs fuseblk, gzip operation permission issue, use gzip -c instead
-    ##for i in ${prefix}.Solo.out/Gene/raw/*; do gzip -c \$i > \${i}.gz; done
-    ##for i in ${prefix}.Solo.out/Gene/filtered/*; do gzip -c \$i > \${i}.gz; done
-    gzip ${prefix}.Solo.out/Gene/raw/*
-    gzip ${prefix}.Solo.out/Gene/filtered/*
+        samtools index *.bam
 
-    cat <<-END_VERSIONS > versions.yml
-    ${getProcessName(task.process)}:
-    ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
-    END_VERSIONS
-    """
+        pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
+        pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+
+        cat <<-END_VERSIONS > versions.yml
+        ${getProcessName(task.process)}:
+        ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
+        END_VERSIONS
+        """
+    }else{
+        """
+        STAR --runThreadN $task.cpus \\
+        --genomeDir $index \\
+        --sjdbGTFfile $gtf \\
+        --soloBarcodeMate 0 \\
+        --readFilesIn $cDNA_read $bc_read \\
+        --outFileNamePrefix ${prefix}. \\
+        --soloCBstart $params.soloCBstart \\
+        --soloCBlen $params.soloCBlen \\
+        --soloUMIstart $params.soloUMIstart \\
+        --soloUMIlen $params.soloUMIlen \\
+        --soloCBwhitelist $params.whitelist \\
+        --soloBarcodeReadLength 0 \\
+        --readFilesCommand zcat \\
+        --soloType $params.soloType \\
+        --clipAdapterType $params.clipAdapterType \\
+        --outFilterScoreMin $params.outFilterScoreMin \\
+        --soloCBmatchWLtype $params.soloCBmatchWLtype \\
+        --soloUMIfiltering $params.soloUMIfiltering \\
+        --soloUMIdedup $params.soloUMIdedup \\
+        --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
+        --outSAMtype BAM SortedByCoordinate \\
+
+        samtools index *.bam
+
+        pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
+        pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+
+        cat <<-END_VERSIONS > versions.yml
+        ${getProcessName(task.process)}:
+        ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
+        END_VERSIONS
+        """
+    }
 }
