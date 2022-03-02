@@ -7,7 +7,7 @@ nextflow.enable.dsl=2
 // NF-CORE MODULES
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
-include { STARSOLO } from "./starsolo"
+include { STARSOLO; STARSOLO_COMPLEX } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 include { REPORT } from "./report"
@@ -67,23 +67,37 @@ workflow {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
-
+    
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
+    if(params.soloType == "CB_UMI_Complex"){
+        ch_whitelist2 = file(params.whitelist2)
+        STARSOLO_COMPLEX(
+            ch_cDNA_read,
+            ch_bc_read,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_whitelist,
+            ch_whitelist2
+        )
+        ch_genome_bam       = STARSOLO_COMPLEX.out.bam
+        ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
+        ch_starsolo_out     = STARSOLO_COMPLEX.out.solo_out
+    }else{
+        STARSOLO(
+            ch_cDNA_read,
+            ch_bc_read,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_whitelist,
+        )
+        ch_genome_bam       = STARSOLO.out.bam
+        ch_genome_bam_index = STARSOLO.out.bai
+        ch_starsolo_out     = STARSOLO.out.solo_out
+    }
 
-    STARSOLO(
-        ch_cDNA_read,
-        ch_bc_read,
-        ch_genomeDir,
-        ch_genomeGTF,
-        ch_whitelist
-    )
-
-    ch_genome_bam                 = STARSOLO.out.bam
-    ch_genome_bam_index           = STARSOLO.out.bai
-    ch_starsolo_out               = STARSOLO.out.solo_out
     ch_qualimap_multiqc           = Channel.empty()
     QUALIMAP_RNASEQ(
         ch_genome_bam,
