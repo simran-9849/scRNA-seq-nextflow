@@ -53,10 +53,7 @@ process CAT_TRIM_FASTQ {
         -j $task.cpus \\
         -q 0 \\
         -Q 30,30 \\
-        -A GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT...AGATCGGAAGAGCGTCGTGTAGGGAAAGA  \\
-        -A "T{30}" \\
-        -G AAGCAGTGGTATCAACGCAGAGTACATGGG \\
-        -n 3
+        $params.trimOpt
 
         ## remove merged fq.gz
         rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
