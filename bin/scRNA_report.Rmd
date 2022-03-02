@@ -38,6 +38,13 @@ intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}
 intron_ratio <- system(intron_cmd, intern = TRUE)
 ```
 
+```{css echo = FALSE}
+.chart-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+```
+
 <h2 style="margin-top: 0.5rem; font-weight: bold;">Sample: `r params$sampleName`</h2>
 
 Row
@@ -64,10 +71,10 @@ valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 ### Median Reads per Cell
 
 ```{r}
-readsMedian <- starsolo_summary %>% 
-    filter(item == "Median Reads per Cell") %>% 
+medianGenePerCell <- starsolo_summary %>% 
+    filter(item == "Median Gene per Cell") %>% 
     pull(value)
-valueBox(readsMedian, icon = "fa-barcode", color = "warning")
+valueBox(medianGenePerCell, icon = "fa-barcode", color = "warning")
 ```
 
 Row
