@@ -83,7 +83,7 @@ Row
 ### Cell Stats
 
 ```{r}
-starsolo_summary %>% 
+d <- starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
                        "Fraction of Unique Reads in Cells",
@@ -94,8 +94,9 @@ starsolo_summary %>%
                        "Median UMI per Cell",
                        "Mean Gene per Cell",
                        "Median Gene per Cell",
-                       "Total Gene Detected")) %>%
-    kbl() %>% kable_paper("hover")
+                       "Total Gene Detected"))
+names(d) <- c("","")                       
+d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
 ### Knee Plot
@@ -132,26 +133,28 @@ Row
 ### Sequencing Stats
 
 ```{r}
-starsolo_summary %>% 
+d <- starsolo_summary %>% 
     filter(item %in% c("Number of Reads",
                        "Reads With Valid Barcodes",
                        "Sequencing Saturation",
                        "Q30 Bases in CB+UMI",
                        "Q30 Bases in RNA read",
-                       "Total Gene Detected")) %>%
-    kbl() %>% kable_paper("hover")
+                       "Total Gene Detected"))
+names(d) <- c("","")
+d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
                                         
 ```
 
 ### Mapping Stats
 
 ```{r}
-starsolo_summary %>% 
+d <- starsolo_summary %>% 
     filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
                        "Reads Mapped to Gene: Unique+Multipe Gene",
                        "Reads Mapped to Gene: Unique Gene")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>% 
-    kbl() %>% kable_paper("hover")
+    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
+names(d) <- c("","")
+d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
