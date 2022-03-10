@@ -68,7 +68,7 @@ readsMean <- starsolo_summary %>%
 valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 ```
 
-### Median Reads per Cell
+### Median Genes per Cell
 
 ```{r}
 medianGenePerCell <- starsolo_summary %>% 
