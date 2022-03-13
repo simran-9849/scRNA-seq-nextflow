@@ -1,15 +1,9 @@
-// Code modified from nf-core ranseq pipeline
-include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
-
-params.options = [:]
-options        = initOptions(params.options)
-
 process STARSOLO {
-    tag "$meta.id"
+    tag "${meta.id}"
     label 'process_high'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+    publishDir "${params.outdir}/starsolo/${meta.id}",
+        mode: "${params.publish_dir_mode}",
+        enabled: params.outdir as boolean
 
     input:
     tuple val(meta), path(cDNA_read)
@@ -25,7 +19,6 @@ process STARSOLO {
     tuple val(meta), path('*Log.out')         , emit: log_out
     tuple val(meta), path('*Log.progress.out'), emit: log_progress
     tuple val(meta), path('*Solo.out/Gene')   , emit: solo_out
-    path "versions.yml"                       , emit: versions
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
@@ -76,11 +69,11 @@ process STARSOLO {
 }
 
 process STARSOLO_COMPLEX {
-        tag "$meta.id"
+    tag "${meta.id}"
     label 'process_high'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+    publishDir "${params.outdir}/sinto/${meta.id}",
+        mode: "${params.publish_dir_mode}",
+        enabled: params.outdir as boolean
 
     input:
     tuple val(meta), path(cDNA_read)
@@ -137,10 +130,5 @@ process STARSOLO_COMPLEX {
 
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
-
-    cat <<-END_VERSIONS > versions.yml
-    ${getProcessName(task.process)}:
-    ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
-    END_VERSIONS
     """
 }

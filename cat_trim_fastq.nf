@@ -33,7 +33,6 @@ process CAT_TRIM_FASTQ {
     tuple val(meta), path("*_1.merged.trimmed.fq.gz"), emit: read1
     tuple val(meta), path("*_2.merged.trimmed.fq.gz"), emit: read2
     tuple val(meta), path("*_cutqc_report.html"), emit: cutqc_report
-    path "versions.yml"                       , emit: versions
 
     script:
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
