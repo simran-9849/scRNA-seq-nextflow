@@ -11,8 +11,15 @@ output:
 params:
   sampleName : "sampleName"
   qualimap_out : "rnaseq_qc_results.txt"
+  starsolo_matrixDir: "sample/Gene/filtered"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
+  nCPUs: 10
+  nMem: 10000000000.0
+  nFeature_RNA_lower: 200
+  percent_mt_cutoff: 100
+  pca_dim: 30
+  resolution: 0.8
 ---
 
 ```{r include=FALSE}
@@ -22,6 +29,20 @@ library(flexdashboard)
 library(htmlwidgets)
 library(plotly)
 library(kableExtra)
+library(Seurat)
+library(future)
+
+
+set.seed(1234)
+plan("multicore", workers = as.numeric(params$nCPUs))
+options(future.globals.maxSize = as.numeric(params$nMem))
+
+## Rmd options
+knitr::opts_chunk$set(
+  comment = '', fig.retina = 4,
+  warning = FALSE, message = FALSE
+)
+
 
 starsolo_summary <- read_csv(params$starsolo_out,
                              col_names = c("item", "value")) %>%
@@ -38,12 +59,52 @@ intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}
 intron_ratio <- system(intron_cmd, intern = TRUE)
 ```
 
+```{r process_starsolo, include = FALSE}
+STARSolo <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
+seuratData <- CreateSeuratObject(counts=STARSolo,
+                             min.cells=2,
+                             min.features=20, project=params$sampleName)
+seuratData[['run']]=params$sampleName
+seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
+
+## Plot the genes counts, RNAs counts and mitochondrial proportions.
+qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
+
+## Filter by mitochondrial percentage
+seuratData <- subset(
+    seuratData, 
+    nFeature_RNA > as.numeric(params$nFeature_RNA_lower) & percent.mt < as.numeric(params$percent_mt_cutoff)
+)
+
+## Normalization and scaling
+seuratData <- NormalizeData(object=seuratData)
+seuratData <- FindVariableFeatures(seuratData)
+seuratData <- ScaleData(seuratData, vars.to.regress=c("nCount_RNA", "percent.mt"), features=rownames(seuratData))
+
+seuratData <- RunPCA(object=seuratData, npcs=100)
+
+## set pca_dim to be used, 30
+pca_dim <- as.numeric(params$pca_dim)
+## set resolution
+resolution <- as.numeric(params$resolution)
+
+seuratData <- FindNeighbors(object=seuratData, reduction="pca", dims=1:pca_dim)
+seuratData <- FindClusters(object=seuratData, resolution=resolution)
+seuratData <- RunUMAP(object=seuratData, reduction="pca", dims=1:pca_dim)
+
+Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
+clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+```
+
 ```{css echo = FALSE}
 .chart-title {
   font-size: 1.2rem;
   font-weight: 700;
 }
 ```
+
+Mapping Result {data-orientation=rows}
+====================
 
 <h2 style="margin-top: 0.5rem; font-weight: bold;">Sample: `r params$sampleName`</h2>
 
@@ -108,23 +169,32 @@ umi_dist <-  umi_dist %>%
     mutate(
         cell = c(1:nrow(umi_dist)),
         group = case_when(
-            cell <= cellNum ~ "identified",
+            cell <= cellNum ~ "cell",
             TRUE ~ "background"
             )
         )
 
-ggplot(umi_dist, aes(x=cell, y=UMI, color = group)) + 
-    geom_point(alpha = 0.8) +
-    geom_vline(xintercept = cellNum, 
-               linetype = "dashed", color = "grey") +
-    scale_x_log10(n.breaks = 8, labels = scales::label_number_si()) + 
-    scale_y_log10(n.breaks = 5, labels = scales::label_number_si()) +
-    scale_color_manual(values =c("grey", "royalblue")) +
-    xlab("Cell") + ylab("UMI") +
-    theme_bw() + 
-    theme(panel.grid = element_blank(), 
-          axis.text = element_text(color="black"),
-          legend.position = "none")
+fig <- plot_ly(data = umi_dist, x = ~cell, y = ~UMI, type = 'scatter', mode = 'lines',
+               color = ~group, colors = c('grey', '#002366'),
+               hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
+               line = list(width = 3))
+fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
+config(fig, displaylogo = FALSE,
+       modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                  'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+
+##ggplot(umi_dist, aes(x=cell, y=UMI, color = group)) + 
+##    geom_point(alpha = 0.8) +
+##    geom_vline(xintercept = cellNum, 
+##               linetype = "dashed", color = "grey") +
+##    scale_x_log10(n.breaks = 8, labels = scales::label_number_si()) + 
+##    scale_y_log10(n.breaks = 5, labels = scales::label_number_si()) +
+##    scale_color_manual(values =c("grey", "royalblue")) +
+##    xlab("Cell") + ylab("UMI") +
+##    theme_bw() + 
+##    theme(panel.grid = element_blank(), 
+##          axis.text = element_text(color="black"),
+##          legend.position = "none")
 ```
 
 Row
@@ -157,4 +227,119 @@ d <- starsolo_summary %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+Cell Cluster {data-orientation=rows}
+====================
+
+Row
+----------
+
+### Cell Cluster (colored by cell group)
+
+```{r}
+clusterPlot %>% ggplotly() %>%
+    config(displaylogo = FALSE,
+           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+```
+
+### Cell Cluster (colored by read depth)
+
+
+```{r}
+seuratData[["log_nCount_RNA"]] <- log10(seuratData[["nCount_RNA"]])
+depthPlot <- FeaturePlot(object = seuratData, features = 'log_nCount_RNA') + scale_color_continuous(name="log10 Read Counts", type = "viridis", direction = 1) + labs(title = NULL)
+depthPlot %>% ggplotly() %>%
+    config(displaylogo = FALSE, 
+           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+```
+
+Row
+----------
+
+### Cell Metrics
+
+```{r fig.width=15, fig.height=7, fig.fullwidth=TRUE, out.width="100%"}
+qcPlot
+```
+
+Reads Trimming {data-orientation=rows}
+====================
+
+```{r include=FALSE}
+plot_quality <- function(d){
+    d %>% plot_ly(type="box", 
+                  q1=~`Lower Quartile`, 
+                  median=~Median,
+                  q3=~`Upper Quartile`, 
+                  lowerfence=~`10th Percentile`, 
+                  upperfence=~`90th Percentile`, 
+                  line = list(color="#6060B0"), name="") %>% 
+        add_lines(x=~Base, y=~Mean, line=list(color="#6E6E3C"), name="") %>% 
+        layout(yaxis = list(range = c(0, 40), title="Quality"), showlegend = FALSE)
+}
+
+plot_nt_distribution <- function(d){
+    d <- d %>% pivot_longer(-Base, names_to = "nt", values_to = "percent")
+    p <- ggplot(d, aes(Base, percent, color=nt))+
+        geom_line(alpha=0.8) + ylim(0,100) + theme_bw()+ 
+        theme(
+            axis.text.x = element_text(face = "bold", color = "black"), 
+            panel.grid = element_blank(),
+            legend.title = element_blank(),
+            legend.position = "top"
+        ) + scale_color_brewer(palette = "Set1")
+    ggplotly(p) %>%
+    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title = ""))
+}
+
+plot_length <- function(d){
+    p <- ggplot(d, aes(Length, Count))+
+        geom_bar(alpha=0.8, fill="grey", stat="identity") +
+        geom_line(alpha=0.8) + theme_bw()+
+        theme(
+            axis.text.x = element_text(face = "bold", color = "black"),
+            panel.grid = element_blank(),
+            legend.title = element_blank(),
+            legend.position = "top"
+        ) + scale_color_brewer(palette = "Set1")
+    ggplotly(p)
+}
+
+plot_duplication <- function(d){
+    d <- d %>%
+        pivot_longer(-`Duplication Level`, names_to = "group", values_to = "percent") ##%>%
+        ##mutate(text=paste0("Duplication Level: ", `Duplication Level`, "<br>", "Percent: ", label_percent(0.01)(percent/100)))
+    p <- ggplot(d, aes(`Duplication Level`, 
+                       percent, 
+                       group=group, 
+                       color=group))+ 
+                       ##text=text))+
+        geom_line(alpha=0.8) + ylim(0,100) + theme_bw()+
+        theme(
+            axis.text.x = element_text(face = "bold", color = "black"),
+            panel.grid = element_blank(),
+            legend.title = element_blank(),
+            legend.position = "top"
+        ) + scale_color_brewer(palette = "Set1")
+    ggplotly(p) %>% 
+    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title = ""))
+}
+
+plot_adapter_content <- function(d){
+    d <- d %>% pivot_longer(-Position, names_to = "Adapter", values_to = "percent")
+    p <- ggplot(d, aes(Position, percent, color=Adapter))+
+        geom_line(alpha=0.8) + ylim(0,100) + 
+        theme_bw()+
+        theme(
+            axis.text.x = element_text(face = "bold", color = "black"),
+            panel.grid = element_blank(),
+            legend.title = element_blank(),
+            legend.position = "top"
+        ) + scale_color_brewer(palette = "Set1")
+    ggplotly(p) %>%
+    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""))
+}
 ```
