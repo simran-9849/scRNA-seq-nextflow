@@ -26,7 +26,7 @@ params:
 library(tidyverse)
 library(scales)
 library(flexdashboard)
-library(htmlwidgets)
+##library(htmlwidgets)
 library(plotly)
 library(kableExtra)
 library(Seurat)
