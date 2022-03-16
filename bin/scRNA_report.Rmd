@@ -92,8 +92,8 @@ seuratData <- FindNeighbors(object=seuratData, reduction="pca", dims=1:pca_dim)
 seuratData <- FindClusters(object=seuratData, resolution=resolution)
 seuratData <- RunUMAP(object=seuratData, reduction="pca", dims=1:pca_dim)
 
-Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
-clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+##Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
+##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
 ```
 
 ```{css echo = FALSE}
@@ -238,22 +238,53 @@ Row
 ### Cell Cluster (colored by cell group)
 
 ```{r}
-clusterPlot %>% ggplotly() %>%
+##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+## extract data from seuratData
+umap_data <- Embeddings(object = seuratData[["umap"]])[colnames(seuratData), c(1, 2)]
+clusterData <- merge(umap_data, seuratData@meta.data, by=0) %>% 
+    dplyr::rename("bc" = `Row.names`)
+cellCount <- clusterData %>% group_by(seurat_clusters) %>% summarise(cellCount = n())
+totalCell <- cellCount %>% pull(cellCount) %>% sum()
+clusterData <- clusterData %>% left_join(cellCount, by = "seurat_clusters") %>%
+    mutate(totalCell=totalCell,
+           text = paste0(cellCount, "/", totalCell))
+
+plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters, 
+        text = ~text,
+        type = 'scatter', mode = 'markers',
+        colors = 'Dark2',
+        hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
     config(displaylogo = FALSE,
            modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    toWebGL()
+
+##clusterPlot %>% ggplotly() %>%
+##    config(displaylogo = FALSE,
+##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
 ```
 
 ### Cell Cluster (colored by read depth)
 
 
 ```{r}
-seuratData[["log_nCount_RNA"]] <- log10(seuratData[["nCount_RNA"]])
-depthPlot <- FeaturePlot(object = seuratData, features = 'log_nCount_RNA') + scale_color_continuous(name="log10 Read Counts", type = "viridis", direction = 1) + labs(title = NULL)
-depthPlot %>% ggplotly() %>%
-    config(displaylogo = FALSE, 
+clusterData <- clusterData %>%
+    mutate(log10_UMI = log10(nCount_RNA))
+    
+plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCount_RNA,
+        type = 'scatter', mode = 'markers',
+        hovertemplate = 'UMI: %{text}<extra></extra>') %>%
+    config(displaylogo = FALSE,
            modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>%
+    toWebGL()
+
+##depthPlot <- FeaturePlot(object = seuratData, features = 'log_nCount_RNA') + scale_color_continuous(name="log10 Read Counts", type = "viridis", direction = 1) + labs(title = NULL)
+##depthPlot %>% ggplotly() %>%
+##    config(displaylogo = FALSE, 
+##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
 ```
 
 Row
