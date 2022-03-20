@@ -304,10 +304,11 @@ Row
 ### Sequencing Saturation
 
 ```{r}
-saturation_data <- fromJSON(params$saturation_json)
+saturation_data <- fromJSON(params$saturation_json) %>%
+    mutate(reads=as.numeric(reads), meanReadPerCell=as.numeric(meanReadPerCell))
 plot_ly(saturation_data, x = ~reads, y= ~saturation,
         type = 'scatter', mode = 'lines',
-        hovertemplate = 'readDepth: %{x}<br>saturation: %{y}<extra></extra>') %>%
+        hovertemplate = 'Read depth: %{x}<br>Saturation: %{y}<extra></extra>') %>%
     config(displaylogo = FALSE,
            modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
                                       'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
@@ -317,9 +318,9 @@ plot_ly(saturation_data, x = ~reads, y= ~saturation,
 ### Median Genes per Cell
 
 ```{r}
-plot_ly(saturation_data, x = ~meadReadPerCell, y= ~medianGenePercell,
+plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePercell,
         type = 'scatter', mode = 'lines',
-        hovertemplate = 'readDepth: %{x}<br>saturation: %{y}<extra></extra>') %>%
+        hovertemplate = 'Mean read per cell: %{x}<br>Median gene per cell: %{y}<extra></extra>') %>%
     config(displaylogo = FALSE,
            modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
                                       'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
