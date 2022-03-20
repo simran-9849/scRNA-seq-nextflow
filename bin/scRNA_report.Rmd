@@ -14,6 +14,7 @@ params:
   starsolo_matrixDir: "sample/Gene/filtered"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
+  saturation_json: "saturation_out.json"
   nCPUs: 10
   nMem: 10000000000.0
   nFeature_RNA_lower: 200
@@ -26,6 +27,7 @@ params:
 library(tidyverse)
 library(scales)
 library(flexdashboard)
+library(jsonlite)
 ##library(htmlwidgets)
 library(plotly)
 library(kableExtra)
@@ -294,6 +296,34 @@ Row
 
 ```{r fig.width=15, fig.height=7, fig.fullwidth=TRUE, out.width="100%"}
 qcPlot
+```
+
+Row
+----------
+
+### Sequencing Saturation
+
+```{r}
+saturation_data <- fromJSON(params$saturation_json)
+plot_ly(saturation_data, x = ~reads, y= ~saturation,
+        type = 'scatter', mode = 'lines',
+        hovertemplate = 'readDepth: %{x}<br>saturation: %{y}<extra></extra>') %>%
+    config(displaylogo = FALSE,
+           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    toWebGL()
+```
+
+### Median Genes per Cell
+
+```{r}
+plot_ly(saturation_data, x = ~meadReadPerCell, y= ~medianGenePercell,
+        type = 'scatter', mode = 'lines',
+        hovertemplate = 'readDepth: %{x}<br>saturation: %{y}<extra></extra>') %>%
+    config(displaylogo = FALSE,
+           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    toWebGL()
 ```
 
 Reads Trimming {data-orientation=rows}

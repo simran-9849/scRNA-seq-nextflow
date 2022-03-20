@@ -10,6 +10,7 @@ process REPORT{
     input:
     tuple val(meta), path(starsolo_outdir)
     tuple val(meta), path(qualimap_outdir)
+    tuple val(meta), path(saturation_outJSON)
 
     output:
     tuple val(meta), path("*report.html"), emit: report

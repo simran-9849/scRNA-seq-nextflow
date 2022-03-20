@@ -10,6 +10,7 @@ include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish
 include { STARSOLO; STARSOLO_COMPLEX } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
+include { CHECK_SATURATION } from "./sequencing_saturation"
 include { REPORT } from "./report"
 
 // check mandatory params
@@ -105,8 +106,14 @@ workflow {
     )
     ch_qualimap_multiqc = QUALIMAP_RNASEQ.out.results
 
+    CHECK_SATURATION(
+        STARSOLO.out.bam,
+        STARSOLO.out.solo_out,
+        ch_whitelist
+    )
     REPORT(
         ch_starsolo_out,
-        ch_qualimap_multiqc
+        ch_qualimap_multiqc,
+        CHECK_SATURATION.out.outJSON
     )
 }
