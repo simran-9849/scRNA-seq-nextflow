@@ -28,6 +28,7 @@ library(tidyverse)
 library(scales)
 library(flexdashboard)
 library(jsonlite)
+library(DT)
 ##library(htmlwidgets)
 library(plotly)
 library(kableExtra)
@@ -287,6 +288,21 @@ plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCoun
 ##    config(displaylogo = FALSE, 
 ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
 ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+```
+
+Row
+----------
+
+### Marker Genes of Clusters (top5)
+
+```{r}
+markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+markerGenes %>%
+    group_by(cluster) %>%
+    slice_max(n = 5, order_by = avg_log2FC) %>% 
+    dplyr::relocate(gene, .before=1) %>%
+    DT::datatable(rownames = FALSE, width = "100%",
+                  options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
 
 Row
