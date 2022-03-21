@@ -290,10 +290,10 @@ plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCoun
 ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
 ```
 
-Row
+Row {style="margin-right: 8px"}
 ----------
 
-### Marker Genes of Clusters (top5)
+### Marker Genes of Clusters (top5) {style="width: 100% !important"}
 
 ```{r}
 markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
