@@ -302,6 +302,9 @@ markerGenes %>%
     group_by(cluster) %>%
     slice_max(n = 5, order_by = avg_log2FC) %>% 
     dplyr::relocate(gene, .before=1) %>%
+    mutate(p_val = signif(p_val, 3),
+           avg_log2FC = signif(avg_log2FC, 3),
+           p_val_adj = signif(p_val_adj, 3)) %>%
     DT::datatable(rownames = FALSE, width = "100%",
                   options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
