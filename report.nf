@@ -17,7 +17,7 @@ process REPORT{
 
     script:
     """
-    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(sampleName = "${meta.id}", starsolo_out = "$starsolo_outdir/Summary.csv", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", starsolo_bc = "$starsolo_outdir/UMIperCellSorted.txt", starsolo_matrixDir="$starsolo_outdir/filtered", nCPUs = "$task.cpus", saturation_json = "${saturation_outJSON}"), intermediates_dir = getwd(), knit_root_dir = getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
+    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(sampleName = "${meta.id}", starsolo_out = "$starsolo_outdir/Summary.csv", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", qualimap_gene_coverage = "$qualimap_outdir/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt", starsolo_bc = "$starsolo_outdir/UMIperCellSorted.txt", starsolo_matrixDir="$starsolo_outdir/filtered", nCPUs = "$task.cpus", saturation_json = "${saturation_outJSON}"), intermediates_dir = getwd(), knit_root_dir = getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
 
     """
 }

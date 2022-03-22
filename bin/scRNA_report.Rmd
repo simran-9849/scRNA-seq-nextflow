@@ -11,6 +11,7 @@ output:
 params:
   sampleName : "sampleName"
   qualimap_out : "rnaseq_qc_results.txt"
+  qualimap_gene_coverage : "qualimap_gene_coverage.txt"
   starsolo_matrixDir: "sample/Gene/filtered"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
@@ -310,9 +311,20 @@ Row
 
 ### Cell Metrics
 
-```{r fig.width=15, fig.height=7, fig.fullwidth=TRUE, out.width="100%"}
+```{r}
 qcPlot
 ```
+
+### Gene Coverage
+
+```{r}
+read_tsv(params$qualimap_gene_coverage) %>%
+    ggplot(aes(x=`#Transcript position`, y=`Transcript coverage profile`)) +
+    geom_line(size=1, color = "#551a8b", alpha=0.8) +
+    scale_y_continuous(labels = label_comma()) +
+    theme_bw() + theme(panel.grid = element_blank())
+```
+
 
 Row
 ----------
