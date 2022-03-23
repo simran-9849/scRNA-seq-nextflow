@@ -336,7 +336,10 @@ Row
 
 ```{r}
 saturation_data <- fromJSON(params$saturation_json) %>%
-    mutate(reads=as.numeric(reads), meanReadPerCell=as.numeric(meanReadPerCell))
+    mutate(reads=as.numeric(reads),
+           saturation=as.numeric(saturation),
+           meanReadPerCell=as.numeric(meanReadPerCell),
+           medianGenePerCell=as.numeric(medianGenePerCell))
 plot_ly(saturation_data, x = ~reads, y= ~saturation,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Read depth: %{x}<br>Saturation: %{y}<extra></extra>') %>%
@@ -349,7 +352,7 @@ plot_ly(saturation_data, x = ~reads, y= ~saturation,
 ### Median Genes per Cell
 
 ```{r}
-plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePercell,
+plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Mean read per cell: %{x}<br>Median gene per cell: %{y}<extra></extra>') %>%
     config(displaylogo = FALSE,

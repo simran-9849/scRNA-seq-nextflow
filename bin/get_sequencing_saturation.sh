@@ -173,7 +173,7 @@ for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
 do
     calc_saturation $i
 done |
-    jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePercell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
+    jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePerCell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
 
 ## End time
 currentTime=$(date +"%F %T")
