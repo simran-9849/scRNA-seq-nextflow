@@ -48,6 +48,16 @@ knitr::opts_chunk$set(
 )
 
 
+config_plotly_fig <- function(fig){
+    config(
+        fig,
+        displaylogo = FALSE, 
+        modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+                                   'hoverClosestCartesian', 'hoverCompareCartesian'),
+        toImageButtonOptions = list(height= NULL, width= NULL, scale= 2)
+    )
+}
+
 starsolo_summary <- read_csv(params$starsolo_out,
                              col_names = c("item", "value")) %>%
                              mutate(
@@ -183,9 +193,7 @@ fig <- plot_ly(data = umi_dist, x = ~cell, y = ~UMI, type = 'scatter', mode = 'l
                hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
                line = list(width = 3))
 fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
-config(fig, displaylogo = FALSE,
-       modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                  'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+config_plotly_fig(fig) %>% toWebGL()
 
 ##ggplot(umi_dist, aes(x=cell, y=UMI, color = group)) + 
 ##    geom_point(alpha = 0.8) +
@@ -258,9 +266,7 @@ plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters,
         type = 'scatter', mode = 'markers',
         colors = 'Dark2',
         hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
-    config(displaylogo = FALSE,
-           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    config_plotly_fig() %>%
     toWebGL()
 
 ##clusterPlot %>% ggplotly() %>%
@@ -279,9 +285,7 @@ clusterData <- clusterData %>%
 plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCount_RNA,
         type = 'scatter', mode = 'markers',
         hovertemplate = 'UMI: %{text}<extra></extra>') %>%
-    config(displaylogo = FALSE,
-           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>%
+    config_plotly_fig() %>%
     toWebGL()
 
 ##depthPlot <- FeaturePlot(object = seuratData, features = 'log_nCount_RNA') + scale_color_continuous(name="log10 Read Counts", type = "viridis", direction = 1) + labs(title = NULL)
@@ -343,9 +347,7 @@ saturation_data <- fromJSON(params$saturation_json) %>%
 plot_ly(saturation_data, x = ~reads, y= ~saturation,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Read depth: %{x}<br>Saturation: %{y}<extra></extra>') %>%
-    config(displaylogo = FALSE,
-           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    config_plotly_fig() %>%
     toWebGL()
 ```
 
@@ -355,87 +357,7 @@ plot_ly(saturation_data, x = ~reads, y= ~saturation,
 plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Mean read per cell: %{x}<br>Median gene per cell: %{y}<extra></extra>') %>%
-    config(displaylogo = FALSE,
-           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% 
+    config_plotly_fig() %>%
     toWebGL()
 ```
 
-Reads Trimming {data-orientation=rows}
-====================
-
-```{r include=FALSE}
-plot_quality <- function(d){
-    d %>% plot_ly(type="box", 
-                  q1=~`Lower Quartile`, 
-                  median=~Median,
-                  q3=~`Upper Quartile`, 
-                  lowerfence=~`10th Percentile`, 
-                  upperfence=~`90th Percentile`, 
-                  line = list(color="#6060B0"), name="") %>% 
-        add_lines(x=~Base, y=~Mean, line=list(color="#6E6E3C"), name="") %>% 
-        layout(yaxis = list(range = c(0, 40), title="Quality"), showlegend = FALSE)
-}
-
-plot_nt_distribution <- function(d){
-    d <- d %>% pivot_longer(-Base, names_to = "nt", values_to = "percent")
-    p <- ggplot(d, aes(Base, percent, color=nt))+
-        geom_line(alpha=0.8) + ylim(0,100) + theme_bw()+ 
-        theme(
-            axis.text.x = element_text(face = "bold", color = "black"), 
-            panel.grid = element_blank(),
-            legend.title = element_blank(),
-            legend.position = "top"
-        ) + scale_color_brewer(palette = "Set1")
-    ggplotly(p) %>%
-    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title = ""))
-}
-
-plot_length <- function(d){
-    p <- ggplot(d, aes(Length, Count))+
-        geom_bar(alpha=0.8, fill="grey", stat="identity") +
-        geom_line(alpha=0.8) + theme_bw()+
-        theme(
-            axis.text.x = element_text(face = "bold", color = "black"),
-            panel.grid = element_blank(),
-            legend.title = element_blank(),
-            legend.position = "top"
-        ) + scale_color_brewer(palette = "Set1")
-    ggplotly(p)
-}
-
-plot_duplication <- function(d){
-    d <- d %>%
-        pivot_longer(-`Duplication Level`, names_to = "group", values_to = "percent") ##%>%
-        ##mutate(text=paste0("Duplication Level: ", `Duplication Level`, "<br>", "Percent: ", label_percent(0.01)(percent/100)))
-    p <- ggplot(d, aes(`Duplication Level`, 
-                       percent, 
-                       group=group, 
-                       color=group))+ 
-                       ##text=text))+
-        geom_line(alpha=0.8) + ylim(0,100) + theme_bw()+
-        theme(
-            axis.text.x = element_text(face = "bold", color = "black"),
-            panel.grid = element_blank(),
-            legend.title = element_blank(),
-            legend.position = "top"
-        ) + scale_color_brewer(palette = "Set1")
-    ggplotly(p) %>% 
-    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title = ""))
-}
-
-plot_adapter_content <- function(d){
-    d <- d %>% pivot_longer(-Position, names_to = "Adapter", values_to = "percent")
-    p <- ggplot(d, aes(Position, percent, color=Adapter))+
-        geom_line(alpha=0.8) + ylim(0,100) + 
-        theme_bw()+
-        theme(
-            axis.text.x = element_text(face = "bold", color = "black"),
-            panel.grid = element_blank(),
-            legend.title = element_blank(),
-            legend.position = "top"
-        ) + scale_color_brewer(palette = "Set1")
-    ggplotly(p) %>%
-    layout(legend = list(orientation = "h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""))
-}
-```
