@@ -1,0 +1,30 @@
+name: scRNAseq_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - plotly
+  - samtools
+  - star
+  - cutadapt
+  - fastx_toolkit
+  - fastqc
+  - r-flexdashboard
+  - r-rmarkdown
+  - r-scales
+  - r-tidyverse
+  - r-plotly
+  - r-kableextra
+  - ca-certificates
+  - certifi
+  - openssl
+  - r-seurat
+  - bedtools
+  - r-dt
+  - bioconductor-limma
+  - gawk
+  - pigz
+  - gzip
+  - coreutils
+  - jq
