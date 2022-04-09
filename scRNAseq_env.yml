@@ -16,12 +16,11 @@ dependencies:
   - r-tidyverse
   - r-plotly
   - r-kableextra
-  - ca-certificates
-  - certifi
-  - openssl
+  - r-jsonlite
+  - r-dt
+  - r-future
   - r-seurat
   - bedtools
-  - r-dt
   - bioconductor-limma
   - gawk
   - pigz
