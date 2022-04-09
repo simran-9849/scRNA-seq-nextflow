@@ -88,7 +88,7 @@ Example custom config file for 10x V3 datasets, please adjust executor parameter
 params {
   genomeDir = "/path/to/STAR/reference/"
   genomeGTF = "/path/to/reference/genes.gtf"
-  whitelist = "/path/to/whitelist"soloCBstart = 1
+  whitelist = "/path/to/whitelist"
   soloCBstart = 1
   soloCBlen = 16
   soloUMIstart = 17
