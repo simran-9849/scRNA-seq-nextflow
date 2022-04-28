@@ -60,7 +60,7 @@ process STARSOLO {
     --soloUMIfiltering $params.soloUMIfiltering \\
     --soloUMIdedup $params.soloUMIdedup \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate \\
+    --outSAMtype BAM SortedByCoordinate
 
     samtools index *.bam
 
@@ -77,7 +77,7 @@ process STARSOLO {
 process STARSOLO_COMPLEX {
     tag "${meta.id}"
     label 'process_high'
-    publishDir "${params.outdir}/sinto/${meta.id}",
+    publishDir "${params.outdir}/starsolo/${meta.id}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
 
@@ -130,11 +130,31 @@ process STARSOLO_COMPLEX {
     --soloUMIfiltering $params.soloUMIfiltering \\
     --soloUMIdedup $params.soloUMIdedup \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate \\
+    --outSAMtype BAM SortedByCoordinate
 
     samtools index *.bam
 
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+    """
+}
+
+process STAR_MKREF {
+    label 'process_high'
+    publishDir "${params.outdir}/star_ref/${params.refoutDir}",
+        mode: "${params.publish_dir_mode}",
+        enabled: params.outdir as boolean
+    input:
+    path genomeFasta
+    path genomeGTF
+    output:
+    path("${params.refoutDir}")       , emit: refPath
+    script:
+    """
+    STAR --runMode genomeGenerate \\
+    --runThreadN $task.cpus \\
+    --genomeDir $params.refoutDir \\
+    --genomeFastaFiles $genomeFasta \\
+    --sjdbGTFfile $genomeGTF $params.mkrefOpt
     """
 }

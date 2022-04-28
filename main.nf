@@ -7,16 +7,12 @@ nextflow.enable.dsl=2
 // NF-CORE MODULES
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
-include { STARSOLO; STARSOLO_COMPLEX } from "./starsolo"
+include { STARSOLO; STARSOLO_COMPLEX; STAR_MKREF } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 include { CHECK_SATURATION } from "./sequencing_saturation"
 include { REPORT } from "./report"
 
-// check mandatory params
-if (!params.input) { exit 1, 'Input samplesheet not specified!' }
-if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
-if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
 
 def create_fastq_channel(LinkedHashMap row) {
     def meta = [:]
@@ -38,6 +34,11 @@ def create_fastq_channel(LinkedHashMap row) {
 
 
 workflow {
+    // check mandatory params
+    if (!params.input) { exit 1, 'Input samplesheet not specified!' }
+    if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
+    if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
+
     Channel
     .fromPath(params.input)
     .splitCsv(header:true)
@@ -115,5 +116,19 @@ workflow {
         ch_starsolo_out,
         ch_qualimap_multiqc,
         CHECK_SATURATION.out.outJSON
+    )
+}
+
+workflow mkref {
+    // check mandatory params
+    if (!params.genomeFasta) { exit 1, 'Genome Fasta not specified!' }
+    if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
+    if (!params.refoutDir) { exit 1, 'Reference output directory not specified!'}
+
+    ch_genomeFasta = file(params.genomeFasta)
+    ch_genomeGTF = file(params.genomeGTF)
+    STAR_MKREF(
+        ch_genomeFasta,
+        ch_genomeGTF
     )
 }
