@@ -39,14 +39,26 @@ conda env create -f scRNAseq_env.yml
 
 ### Prepare Reference
 
-To make the output "consistent" with CellRanger result, one could use reference dataset prepared by 10X directly. Please visit their download page (https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/latest) to obtain the latest version. It's worthy noting 10X conducted some custom filtration steps based on ensembl reference. Please visit the [building notes](https://support.10xgenomics.com/single-cell-gene-expression/software/release-notes/build#grch38_#{files.refdata_GRCh38.version}) for details.
+To make the output "consistent" with CellRanger result, one could 
+use reference dataset prepared by 10X directly. 
+Please visit their download page (https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/latest) to 
+obtain the latest version. It's worthy noting 10X conducted some custom filtration steps based on ensembl reference. 
+Please visit the [building notes](https://support.10xgenomics.com/single-cell-gene-expression/software/release-notes/build#grch38_#{files.refdata_GRCh38.version}) for details.
 
 
-
-Or one could generate their own reference by STAR as long as they have genome fasta file and gene annotation file (GTF), the command was suggested in[ `starsolo`'s README file](https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md).
+Or one could generate their own reference by STAR as long as they have genome fasta file and 
+gene annotation file (GTF), the command was suggested 
+in [`starsolo`'s README file](https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md).
 
 ```
 STAR  --runMode genomeGenerate --runThreadN ... --genomeDir ./ --genomeFastaFiles /path/to/genome.fa  --sjdbGTFfile /path/to/genes.gtf
+```
+
+A `mkref` sub-workflow was added and requires `--genomeFasta`, `--genomeGTF`, `--refoutDir` options to run. A typical
+using example would be:
+
+```
+nextflow run /path/to/scRNA-seq -entry mkref --genomeFasta /path/to/genome.fa --genomeGTF /path/to/genes.gtf --refoutDir ref_out_dir -bg
 ```
 
 ### Prepare Whitelist
@@ -114,3 +126,10 @@ process {
   }
 }
 ```
+
+## Output
+
+After finished running, user could find all "published" result files in `results` directory.
+A tsv file recording execution trace could be found as `results/pipeline_info/execution_trace_{timeStamp}.txt`.
+If one found all processes were finished as "COMPLETED" status, the intermediate
+directory `work` could be safely removed by `rm -rf work`.
