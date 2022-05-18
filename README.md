@@ -143,3 +143,8 @@ directory `work` could be safely removed by `rm -rf work`.
 
 - **work**: intermediate directory, could be safely removed after running complete
 
+## Update Notes
+
+### v0.0.3 
+
+- default starsolo parameters were changed to adapt thunderbio scRNA-seq library instead 10x datasets
