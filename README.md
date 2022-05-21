@@ -110,7 +110,7 @@ params {
 
 process {
   executor = "slurm" // remove this line if use local executor
-  conda = "/path/to/miniconda3/envs/scRNAseq_env"
+  conda = "/path/to/miniconda3/envs/starscope_env
   // adjust resources here
   withLabel: process_high {
     cpus = 8
