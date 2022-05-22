@@ -141,7 +141,7 @@ process STARSOLO_COMPLEX {
 
 process STAR_MKREF {
     label 'process_high'
-    publishDir "${params.outdir}/star_ref/${params.refoutDir}",
+    publishDir "${params.outdir}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
     input:
