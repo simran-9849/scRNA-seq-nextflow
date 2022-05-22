@@ -142,7 +142,7 @@ process STARSOLO_COMPLEX {
 process STAR_MKREF {
     label 'process_high'
     publishDir "${params.outdir}",
-        mode: "${params.publish_dir_mode}",
+        mode: "move",
         enabled: params.outdir as boolean
     input:
     path genomeFasta
