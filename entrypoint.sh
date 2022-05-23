@@ -11,10 +11,10 @@ set -euo pipefail
 
 # Temporarily disable strict mode and activate conda:
 set +euo pipefail
-conda activate scRNAseq_env
+conda activate starscope_env
 
 # Re-enable strict mode:
 set -euo pipefail
 
 # exec the final command:
-exec $@
+exec "$@"
