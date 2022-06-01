@@ -90,24 +90,28 @@ seuratData <- subset(
     nFeature_RNA > as.numeric(params$nFeature_RNA_lower) & percent.mt < as.numeric(params$percent_mt_cutoff)
 )
 
-## Normalization and scaling
-seuratData <- NormalizeData(object=seuratData)
-seuratData <- FindVariableFeatures(seuratData)
-seuratData <- ScaleData(seuratData, vars.to.regress=c("nCount_RNA", "percent.mt"), features=rownames(seuratData))
-
-seuratData <- RunPCA(object=seuratData, npcs=100)
-
-## set pca_dim to be used, 30
-pca_dim <- as.numeric(params$pca_dim)
-## set resolution
-resolution <- as.numeric(params$resolution)
-
-seuratData <- FindNeighbors(object=seuratData, reduction="pca", dims=1:pca_dim)
-seuratData <- FindClusters(object=seuratData, resolution=resolution)
-seuratData <- RunUMAP(object=seuratData, reduction="pca", dims=1:pca_dim)
-
-##Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
-##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+filtered_cells <- seuratData@meta.data %>% nrow
+## Only perform clustering when more than 150 cells detected
+if(filtered_cells >= 150){
+    ## Normalization and scaling
+    seuratData <- NormalizeData(object=seuratData)
+    seuratData <- FindVariableFeatures(seuratData)
+    seuratData <- ScaleData(seuratData, vars.to.regress=c("nCount_RNA", "percent.mt"), features=rownames(seuratData))
+    
+    seuratData <- RunPCA(object=seuratData, npcs=100)
+    
+    ## set pca_dim to be used, 30
+    pca_dim <- as.numeric(params$pca_dim)
+    ## set resolution
+    resolution <- as.numeric(params$resolution)
+    
+    seuratData <- FindNeighbors(object=seuratData, reduction="pca", dims=1:pca_dim)
+    seuratData <- FindClusters(object=seuratData, resolution=resolution)
+    seuratData <- RunUMAP(object=seuratData, reduction="pca", dims=1:pca_dim)
+    
+    ##Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
+    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+}
 ```
 
 ```{css echo = FALSE}
@@ -250,35 +254,41 @@ Row
 ### Cell Cluster (colored by cell group)
 
 ```{r}
-##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
-## extract data from seuratData
-umap_data <- Embeddings(object = seuratData[["umap"]])[colnames(seuratData), c(1, 2)]
-clusterData <- merge(umap_data, seuratData@meta.data, by=0) %>% 
-    dplyr::rename("bc" = `Row.names`)
-cellCount <- clusterData %>% group_by(seurat_clusters) %>% summarise(cellCount = n())
-totalCell <- cellCount %>% pull(cellCount) %>% sum()
-clusterData <- clusterData %>% left_join(cellCount, by = "seurat_clusters") %>%
-    mutate(totalCell=totalCell,
-           text = paste0(cellCount, "/", totalCell))
-
-plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters, 
-        text = ~text,
-        type = 'scatter', mode = 'markers',
-        colors = 'Dark2',
-        hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
-    config_plotly_fig() %>%
-    toWebGL()
-
-##clusterPlot %>% ggplotly() %>%
-##    config(displaylogo = FALSE,
-##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+## Only plot cluster when there are more than 150 filtered cells
+if(filtered_cells >= 150){
+    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+    ## extract data from seuratData
+    umap_data <- Embeddings(object = seuratData[["umap"]])[colnames(seuratData), c(1, 2)]
+    clusterData <- merge(umap_data, seuratData@meta.data, by=0) %>% 
+        dplyr::rename("bc" = `Row.names`)
+    cellCount <- clusterData %>% group_by(seurat_clusters) %>% summarise(cellCount = n())
+    totalCell <- cellCount %>% pull(cellCount) %>% sum()
+    clusterData <- clusterData %>% left_join(cellCount, by = "seurat_clusters") %>%
+        mutate(totalCell=totalCell,
+               text = paste0(cellCount, "/", totalCell))
+    
+    plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters, 
+            text = ~text,
+            type = 'scatter', mode = 'markers',
+            colors = 'Dark2',
+            hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
+        config_plotly_fig() %>%
+        toWebGL()
+    
+    ##clusterPlot %>% ggplotly() %>%
+    ##    config(displaylogo = FALSE,
+    ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+    ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+}else{
+    cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
+}
 ```
 
 ### Cell Cluster (colored by read depth)
 
 
 ```{r}
+if(filtered_cells >= 150){
 clusterData <- clusterData %>%
     mutate(log10_UMI = log10(nCount_RNA))
     
@@ -293,6 +303,9 @@ plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCoun
 ##    config(displaylogo = FALSE, 
 ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
 ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+}else{
+    cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
+}
 ```
 
 Row {style="margin-right: 8px"}
@@ -301,16 +314,20 @@ Row {style="margin-right: 8px"}
 ### Marker Genes of Clusters (top5) {style="width: 100% !important"}
 
 ```{r}
-markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-markerGenes %>%
-    group_by(cluster) %>%
-    slice_max(n = 5, order_by = avg_log2FC) %>% 
-    dplyr::relocate(gene, .before=1) %>%
-    mutate(p_val = signif(p_val, 3),
-           avg_log2FC = signif(avg_log2FC, 3),
-           p_val_adj = signif(p_val_adj, 3)) %>%
-    DT::datatable(rownames = FALSE, width = "100%",
-                  options = list(scrollX = T, scrollY = F, pageLength = 10))
+if(filtered_cells >= 150){
+    markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+    markerGenes %>%
+        group_by(cluster) %>%
+        slice_max(n = 5, order_by = avg_log2FC) %>% 
+        dplyr::relocate(gene, .before=1) %>%
+        mutate(p_val = signif(p_val, 3),
+               avg_log2FC = signif(avg_log2FC, 3),
+               p_val_adj = signif(p_val_adj, 3)) %>%
+        DT::datatable(rownames = FALSE, width = "100%",
+                      options = list(scrollX = T, scrollY = F, pageLength = 10))
+}else{
+    cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
+}
 ```
 
 Row
