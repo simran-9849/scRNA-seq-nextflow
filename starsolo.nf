@@ -16,6 +16,7 @@ process STARSOLO {
         }else{
             return filename
         }
+    }
     input:
     tuple val(meta), path(cDNA_read)
     tuple val(meta), path(bc_read)
