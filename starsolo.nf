@@ -9,8 +9,13 @@ process STARSOLO {
     label 'process_high'
     publishDir "${params.outdir}/starsolo/${meta.id}",
         mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
-
+        enabled: params.outdir as boolean,
+        saveAs: { filename ->
+        if(filename=~/sortedByCoord.out.bam/){
+            return null
+        }else{
+            return filename
+        }
     input:
     tuple val(meta), path(cDNA_read)
     tuple val(meta), path(bc_read)
