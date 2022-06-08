@@ -34,7 +34,7 @@ process STARSOLO {
 
 
     script:
-    def prefix     = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def prefix     = "${meta.id}"
     //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
@@ -107,7 +107,7 @@ process STARSOLO_COMPLEX {
     tuple val(meta), path('*.tab')                   , optional:true, emit: tab
 
     script:
-    def prefix     = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def prefix     = "${meta.id}"
     //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
@@ -140,6 +140,11 @@ process STARSOLO_COMPLEX {
 
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+
+    cat <<-END_VERSIONS > versions.yml
+    ${getProcessName(task.process)}:
+    ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
+    END_VERSIONS
     """
 }
 
