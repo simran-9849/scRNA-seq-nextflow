@@ -6,7 +6,7 @@ channels:
 dependencies:
   - plotly
   - samtools
-  - star
+  - star=2.7.9a
   - cutadapt
   - fastx_toolkit
   - fastqc
