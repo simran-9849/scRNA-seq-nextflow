@@ -1,9 +1,3 @@
-// Code modified from nf-core ranseq pipeline
-include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
-
-params.options = [:]
-options        = initOptions(params.options)
-
 process STARSOLO {
     tag "${meta.id}"
     label 'process_high'
@@ -65,6 +59,8 @@ process STARSOLO {
     --soloCBmatchWLtype $params.soloCBmatchWLtype \\
     --soloUMIfiltering $params.soloUMIfiltering \\
     --soloUMIdedup $params.soloUMIdedup \\
+    --soloMultiMappers $params.soloMultiMappers \\
+    --soloFeatures $params.soloFeatures \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate
 
@@ -135,6 +131,8 @@ process STARSOLO_COMPLEX {
     --soloCBmatchWLtype $params.soloCBmatchWLtype \\
     --soloUMIfiltering $params.soloUMIfiltering \\
     --soloUMIdedup $params.soloUMIdedup \\
+    --soloMultiMappers $params.soloMultiMappers \\
+    --soloFeatures $params.soloFeatures \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate
 
