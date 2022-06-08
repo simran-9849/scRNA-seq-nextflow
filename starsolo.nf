@@ -64,7 +64,7 @@ process STARSOLO {
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate
 
-    samtools index *.bam
+    samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
