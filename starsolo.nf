@@ -98,7 +98,7 @@ process STARSOLO_COMPLEX {
     tuple val(meta), path('*Log.out')         , emit: log_out
     tuple val(meta), path('*Log.progress.out'), emit: log_progress
     tuple val(meta), path('*Solo.out/Gene')   , emit: solo_out
-    path "versions.yml"                       , emit: versions
+    //path "versions.yml"                       , emit: versions
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
