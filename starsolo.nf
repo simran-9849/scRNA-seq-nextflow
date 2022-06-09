@@ -69,10 +69,10 @@ process STARSOLO {
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
 
-    cat <<-END_VERSIONS > versions.yml
-    ${getProcessName(task.process)}:
-    ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
-    END_VERSIONS
+    ##cat <<-END_VERSIONS > versions.yml
+    ##${getProcessName(task.process)}:
+    ##${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
+    ##END_VERSIONS
     """
 }
 
@@ -141,10 +141,10 @@ process STARSOLO_COMPLEX {
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
 
-    cat <<-END_VERSIONS > versions.yml
-    ${getProcessName(task.process)}:
-    ${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
-    END_VERSIONS
+    ##cat <<-END_VERSIONS > versions.yml
+    ##${getProcessName(task.process)}:
+    ##${getSoftwareName(task.process)}: \$(STAR --version | sed -e "s/STAR_//g")
+    ##END_VERSIONS
     """
 }
 
