@@ -27,7 +27,7 @@ WORKDIR /app
 
 ## All packages will be installed to base env
 ## and could be invoked directoryly
-RUN mamba install -c conda-forge -c bioconda plotly samtools star=2.7.9a cutadapt fastx_toolkit fastqc r-flexdashboard r-rmarkdown r-scales r-tidyverse r-plotly r-kableextra r-jsonlite r-dt r-future r-seurat bedtools bioconductor-limma gawk pigz gzip coreutils jq qualimap
+RUN mamba install -c conda-forge -c bioconda plotly samtools==1.15 star==2.7.9a cutadapt fastx_toolkit fastqc r-flexdashboard r-rmarkdown r-scales r-tidyverse r-plotly r-kableextra r-jsonlite r-dt r-future r-seurat bedtools bioconductor-limma gawk pigz gzip coreutils jq qualimap
 
 ## copy entrypoint.sh
 ##COPY entrypoint.sh .
