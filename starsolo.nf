@@ -24,7 +24,7 @@ process STARSOLO {
     tuple val(meta), path('*Log.final.out')   , emit: log_final
     tuple val(meta), path('*Log.out')         , emit: log_out
     tuple val(meta), path('*Log.progress.out'), emit: log_progress
-    tuple val(meta), path('*Solo.out/Gene')   , emit: solo_out
+    tuple val(meta), path('*Solo.out/Gene*')   , emit: solo_out
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
@@ -66,8 +66,8 @@ process STARSOLO {
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
-    pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+    pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
+    pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
     """
 }
 
