@@ -151,7 +151,7 @@ valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 
 ```{r}
 medianGenePerCell <- starsolo_summary %>% 
-    filter(item == "Median Gene per Cell") %>% 
+    filter(str_detect(item, regex("Median Gene(Full)* per Cell"))) %>% 
     pull(value)
 valueBox(medianGenePerCell, icon = "fa-barcode", color = "warning")
 ```
@@ -165,6 +165,7 @@ Row
 d <- starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
+                       "Unique Reads in Cells Mapped to GeneFull",
                        "Fraction of Unique Reads in Cells",
                        "Mean Reads per Cell",
                        "Median Reads per Cell",
@@ -172,8 +173,11 @@ d <- starsolo_summary %>%
                        "Mean UMI per Cell",
                        "Median UMI per Cell",
                        "Mean Gene per Cell",
+                       "Mean GeneFull per Cell",
                        "Median Gene per Cell",
-                       "Total Gene Detected"))
+                       "Median GeneFull per Cell",
+                       "Total Gene Detected",
+                       "Total GeneFull Detected"))
 names(d) <- c("","")                       
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
@@ -225,7 +229,8 @@ d <- starsolo_summary %>%
                        "Sequencing Saturation",
                        "Q30 Bases in CB+UMI",
                        "Q30 Bases in RNA read",
-                       "Total Gene Detected"))
+                       "Total Gene Detected",
+                       "Total GeneFull Detected"))
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
                                         
@@ -238,7 +243,9 @@ d <- starsolo_summary %>%
     filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
                        "Reads Mapped to Gene: Unique+Multipe Gene",
-                       "Reads Mapped to Gene: Unique Gene")) %>%
+                       "Reads Mapped to GeneFull: Unique+Multipe GeneFull",
+                       "Reads Mapped to Gene: Unique Gene",
+                       "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
 names(d) <- c("","")
