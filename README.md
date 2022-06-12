@@ -145,6 +145,18 @@ directory `work` could be safely removed by `rm -rf work`.
 
 ## Update Notes
 
+### v0.0.6
+
+- Now the BAM output will not by published
+
+- Added support for counting intron reads
+
+- Fixed STAR to 2.7.9a and samtools to 1.15
+
+### v0.0.5
+
+- Fixed issue that no report generated if too few cells detected
+
 ### v0.0.3 
 
 - default starsolo parameters were changed to adapt thunderbio scRNA-seq library instead 10x datasets
