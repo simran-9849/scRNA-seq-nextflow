@@ -248,6 +248,7 @@ d <- starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
+d <- d %>% mutate(item=str_replace_all(item, "GeneFull", "Gene"))
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
