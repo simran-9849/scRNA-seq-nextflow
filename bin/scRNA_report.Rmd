@@ -65,7 +65,8 @@ starsolo_summary <- read_csv(params$starsolo_out,
                                  value > 1 ~ comma(value, accuracy = 1),
                                  value <=1 ~ percent(value)
                                  )
-                             )
+                             ) %>%
+    mutate(item=str_replace_all(item, "GeneFull", "Gene"))
 exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
 exon_ratio <- system(exon_cmd, intern = TRUE)
 
@@ -248,7 +249,6 @@ d <- starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
-d <- d %>% mutate(item=str_replace_all(item, "GeneFull", "Gene"))
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
