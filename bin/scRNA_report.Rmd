@@ -35,7 +35,7 @@ library(plotly)
 library(kableExtra)
 library(Seurat)
 library(future)
-
+library(SeuratDisk)
 
 set.seed(1234)
 plan("multicore", workers = as.numeric(params$nCPUs))
@@ -77,10 +77,16 @@ intron_ratio <- system(intron_cmd, intern = TRUE)
 ```{r process_starsolo, include = FALSE}
 STARSolo <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
 seuratData <- CreateSeuratObject(counts=STARSolo,
-                             min.cells=2,
-                             min.features=20, project=params$sampleName)
+                             min.cells=0,
+                             min.features=0, project=params$sampleName)
 seuratData[['run']]=params$sampleName
 seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
+
+## save a raw loom file
+seuratData.loom <- as.loom(
+    seuratData, 
+    filename = paste0(params$sampleName, ".raw.loom"), verbose = FALSE
+)
 
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
 qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
