@@ -386,3 +386,37 @@ plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
     toWebGL()
 ```
 
+```{r include=FALSE}
+starsolo_summary %>% 
+    filter(item %in% c("Estimated Number of Cells",
+                       "Unique Reads in Cells Mapped to Gene",
+                       "Unique Reads in Cells Mapped to GeneFull",
+                       "Fraction of Unique Reads in Cells",
+                       "Mean Reads per Cell",
+                       "Median Reads per Cell",
+                       "UMIs in Cells",
+                       "Mean UMI per Cell",
+                       "Median UMI per Cell",
+                       "Mean Gene per Cell",
+                       "Mean GeneFull per Cell",
+                       "Median Gene per Cell",
+                       "Median GeneFull per Cell",
+                       "Total Gene Detected",
+                       "Total GeneFull Detected",
+                       "Number of Reads",
+                       "Reads With Valid Barcodes",
+                       "Sequencing Saturation",
+                       "Q30 Bases in CB+UMI",
+                       "Q30 Bases in RNA read",
+                       "Reads Mapped to Genome: Unique+Multiple",
+                       "Reads Mapped to Genome: Unique",
+                       "Reads Mapped to Gene: Unique+Multipe Gene",
+                       "Reads Mapped to GeneFull: Unique+Multipe GeneFull",
+                       "Reads Mapped to Gene: Unique Gene",
+                       "Reads Mapped to GeneFull: Unique GeneFull")) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    mutate(sampleID="testID") %>% 
+    pivot_wider(sampleID, names_from = item, values_from= value) %>% 
+    write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
+```
