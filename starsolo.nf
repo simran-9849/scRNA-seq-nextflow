@@ -46,6 +46,7 @@ process STARSOLO {
     --soloBarcodeMate 0 \\
     --readFilesIn $cDNA_read $bc_read \\
     --outFileNamePrefix ${prefix}. \\
+    --soloStrand $params.soloStrand \\
     --soloCBstart $params.soloCBstart \\
     --soloCBlen $params.soloCBlen \\
     --soloUMIstart $params.soloUMIstart \\
@@ -115,6 +116,7 @@ process STARSOLO_COMPLEX {
     --soloBarcodeReadLength 0 \\
     --readFilesCommand zcat \\
     --outFileNamePrefix ${prefix}. \\
+    --soloStrand $params.soloStrand \\
     --soloType $params.soloType \\
     --soloCBposition $params.complexCBposition \\
     --soloUMIposition $params.complexUMIposition \\
