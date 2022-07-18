@@ -38,7 +38,7 @@ library(future)
 library(SeuratDisk)
 
 set.seed(1234)
-plan("multicore", workers = as.numeric(params$nCPUs))
+plan(multisession, workers = as.numeric(params$nCPUs))
 options(future.globals.maxSize = as.numeric(params$nMem))
 
 ## Rmd options
