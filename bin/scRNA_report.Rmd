@@ -39,7 +39,7 @@ library(SeuratDisk)
 
 set.seed(1234)
 plan(multisession, workers = as.numeric(params$nCPUs))
-options(future.globals.maxSize = as.numeric(params$nMem))
+options(future.globals.maxSize = as.numeric(params$nMem), sass.cache = FALSE)
 
 ## Rmd options
 knitr::opts_chunk$set(
