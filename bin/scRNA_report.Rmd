@@ -424,7 +424,7 @@ starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
-    mutate(sampleID="testID") %>% 
+    mutate(sampleID=params$sampleName) %>% 
     pivot_wider(sampleID, names_from = item, values_from= value) %>% 
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
 ```
