@@ -93,13 +93,21 @@ seuratData.loom <- SaveLoom(
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
 qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
 
-## Filter by mitochondrial percentage
-seuratData <- subset(
-    seuratData, 
-    nFeature_RNA > as.numeric(params$nFeature_RNA_lower) & percent.mt < as.numeric(params$percent_mt_cutoff)
-)
+## Filter by gene counts and mitochondrial percentage
+## Check the number of cells left first, or subset will throw an error
+filtered_cells <- seuratData@meta.data %>% 
+    filter(nFeature_RNA > max(200, as.numeric(params$nFeature_RNA_lower)),
+           percent.mt < as.numeric(params$percent_mt_cutoff)) %>% 
+           nrow
+message("filtered_cells is ", filtered_cells)
+if(filtered_cells>0){
+    seuratData <- subset(
+        seuratData, 
+        nFeature_RNA > as.numeric(params$nFeature_RNA_lower) & percent.mt < as.numeric(params$percent_mt_cutoff)
+    )
+    filtered_cells <- seuratData@meta.data %>% nrow
+}
 
-filtered_cells <- seuratData@meta.data %>% nrow
 ## Only perform clustering when more than 150 cells detected
 if(filtered_cells >= 150){
     ## Normalization and scaling
