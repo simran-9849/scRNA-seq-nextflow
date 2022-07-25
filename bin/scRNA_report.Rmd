@@ -83,9 +83,9 @@ seuratData[['run']]=params$sampleName
 seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
 
 ## save a raw loom file
-seuratData.loom <- SaveLoom(
+SaveH5Seurat(
     seuratData, 
-    filename = paste0(params$sampleName, ".raw.loom"), 
+    filename = paste0(params$sampleName, ".raw.h5seurat"), 
     overwrite = TRUE,
     verbose = FALSE
 )
