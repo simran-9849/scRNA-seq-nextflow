@@ -15,7 +15,7 @@ process REPORT{
     output:
     tuple val(meta), path("*report.html"), emit: report
     tuple val(meta), path("*metrics.json"), emit: metrics
-    tuple val(meta), path("*raw.loom"), emit: loom
+    tuple val(meta), path("*raw.h5seurat"), emit: h5seurat
 
     script:
     """
