@@ -29,3 +29,4 @@ dependencies:
   - jq
   - qualimap
   - r-seuratdisk
+  - r-rhpcblasctl
