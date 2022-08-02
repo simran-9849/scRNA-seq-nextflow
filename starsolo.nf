@@ -62,6 +62,7 @@ process STARSOLO {
     --soloUMIdedup $params.soloUMIdedup \\
     --soloMultiMappers $params.soloMultiMappers \\
     --soloFeatures $params.soloFeatures \\
+    --soloCellFilter $params.soloCellFilter \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate
 
