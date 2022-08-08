@@ -4,16 +4,18 @@ process CHECK_SATURATION {
 
     input:
     tuple val(meta), path(starsoloBAM)
-    tuple val(meta), path(starsolo_outdir)
+    tuple val(meta), path(starsolo_filteredDir)
     path(whitelist)
 
     output:
     tuple val(meta), path("${meta.id}.saturation_out.json"), emit: outJSON
 
-    shell:
-    '''
-    cellFile=$(mktemp -p ./)
-    zcat !{starsolo_outdir}/filtered/barcodes.tsv.gz > $cellFile
-    get_sequencing_saturation.sh !{whitelist} $cellFile !{starsoloBAM} !{task.cpus} !{meta.id}.saturation_out.json
-    '''
+    script:
+    def multiMapper = params.soloMultiMappers == "Unique" ? "unique" : "multiple"
+    """
+    cellFile=\$(mktemp -p ./)
+    zcat ${starsolo_filteredDir}/barcodes.tsv.gz > \$cellFile
+    get_sequencing_saturation.sh ${whitelist} \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} ${meta.id}.saturation_out.json
+    rm \$cellFile
+    """
 }

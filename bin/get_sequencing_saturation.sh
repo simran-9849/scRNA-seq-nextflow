@@ -11,158 +11,170 @@
 
 set -euo pipefail
 
-usage="Usage: $(basename $0) whitelist cellList inputBAM thread outputJSON
+function usage {
 
-Please set whitelist as None when it's not available.
-"
+    cat<<-EOF
+	Usage:
+	=========
+	$(basename $0) whiteList cellList multiMapper inputBAM thread outputJSON
+	
+	All inputs are positional.
+	
+	whiteList        Input whiteList file name. Please set
+	                 whiteList as "None" when it's not available.
+	                 
+	cellList         Input cellList file, e.g. barcodes.tsv from
+	                 STARsolo's output directory. The cellList doesn't
+	                 support <(zcat barcodes.tsv.gz) as input.
+	                 
+	multiMapper      "unique" or "multiple", indicates calculating
+	                 saturation results from unique gene reads or
+	                 multiple gene reads.
+	                 
+	inputBAM         Input BAM file, i.e. STARsolo output BAM.
+	                 
+	thread           Number of threads to use.
+	                 
+	outputJSON       Output json file name
+EOF
+}
 
 if [[ $# -eq 0 ]] || [[ $1 == "-h" ]] || [[ $1 == "-help" ]] || [[ $1 == "--help" ]]
 then
-    echo "$usage"
+    usage
     exit 0
 fi
 
-whitelist=$1
-cellList=$2
-inputBAM=$3
-thread=$4
-outputJSON=$5
+## default options
+multiMapper="unique"
+thread=4
 
-if [[ ! -f $whitelist ]] && [[ $whitelist != "None" ]]
+whiteList=$1
+cellList=$2
+multiMapper=$3
+inputBAM=$4
+thread=$5
+outputJSON=$6
+
+if [[ ! -f $whiteList ]] && [[ $whiteList != "None" ]]
 then
-    echo "$whitelist not found."
+    >&2 echo "$whiteList not found."
     exit 1
 fi
 
 if [[ ! -f $inputBAM ]]
 then
-    echo "$inputBAM not found."
+    echo "$inputBAM not found." >&2
     exit 1
 fi
 
-function calc_saturation {
-    local readInfo=$(mktemp -p ./)
+if [[ $multiMapper == "unique" ]]
+then
+    geneTag="GX"
+elif [[ $multiMapper == "multiple" ]]
+then
+    geneTag="gx"
+else
+    echo "multiMapper option only supports unique or multiple" >&2
+    exit 1
+fi
+
+readInfo=$(mktemp -p ./)
+
+function processBAM {
     ## percentage is  0.0 ≤ FLOAT ≤ 1.0
     local percentage=$1
-
-    if [[ $whitelist != "None" ]]
+    if [[ $whiteList != "None" ]]
     then
-        samtools view -@ $thread -u -D CB:$whitelist $inputBAM |
-            samtools view -@ $thread -d GX --subsample $percentage --subsample-seed 1324 |
+        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 $inputBAM |
             awk '
-            {
-                readID=$1;
-                for(i=12;i<=NF;i++){
-                    if($i~/^CB/){split($i, tmp, ":");
-                        CB=tmp[3]
-                    }else if($i~/^UB/){
-                        split($i, tmp, ":");
-                        UMI=tmp[3]
-                    }else if($i~/^GX/){
-                        split($i, tmp, ":");
-                        gene=tmp[3]
-                    }
-                };
-                print readID"\t"CB"\t"UMI"\t"gene
-            }
-            ' |
-            sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
-        cat $readInfo | bedtools groupby -g 2,3 -c 1,4 -o distinct |
-            awk '
-            BEGIN{
-                m=0;n=0
-            }
             NR==FNR{
-                cell[$1]
+                wl[$1]
             }
             NR>FNR{
-                if($2!="-"){m+=1};
-                split($3, readArray, ",");
-                n+=length(readArray);
-                if($1 in cell){
-                    readCount[$1]+=length(readArray)
-                    if($2!="-"){barocodeGene[$1","$4]}
+                readID=$1;
+                CB="-"
+                UMI="-"
+                gene="-"
+                for(i=12;i<=NF;i++){
+                    if($i~/^CB/){
+                        CB=substr($i, 6)
+                    }else if($i~/^UB/){
+                        UMI=substr($i, 6)
+                    }else if($i~/^'$geneTag'/){
+                        gene=substr($i, 6)
+                    }
+                };
+                if((CB in wl) && (gene !="-")){
+                    print readID"\t"CB"\t"UMI"\t"gene
                 }
             }
-            END{
-                asort(readCount)
-                totalRead=0
-                for(i=1;i<=length(readCount);i++){
-                    totalRead+=readCount[i]
-                }
-                meanRead=totalRead/length(readCount)
-                for(i in barocodeGene){
-                    split(i, tmp, ",")
-                    geneCount[tmp[1]]+=1
-                }
-                asort(geneCount)
-                if(length(geneCount)%2==1){
-                    medianGene=geneCount[(length(geneCount)+1)/2]
-                }else{
-                    medianGene=(geneCount[length(geneCount)/2] + geneCount[length(geneCount)/2+1])/2
-                }
-                print "'$percentage'\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
-            }
-            ' $cellList -
+            ' $whiteList - |
+            sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
     else
-        samtools view -@ $thread -d GX --subsample $percentage --subsample-seed 1324 $inputBAM |
+        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 |
             awk '
             {
                 readID=$1;
                 for(i=12;i<=NF;i++){
-                    if($i~/^CB/){split($i, tmp, ":");
-                        CB=tmp[3]
+                    if($i~/^CB/){
+                        CB=substr($i, 6)
                     }else if($i~/^UB/){
-                        split($i, tmp, ":");
-                        UMI=tmp[3]
+                        UMI=substr($i, 6)
                     }else if($i~/^GX/){
-                        split($i, tmp, ":");
-                        gene=tmp[3]
+                        gene=substr($i, 6)
                     }
                 };
-                print readID"\t"CB"\t"UMI"\t"gene
+                if(CB!="-" && gene !="-"){
+                    print readID"\t"CB"\t"UMI"\t"gene
+                }
             }
             ' |
             sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
-        cat $readInfo | bedtools groupby -g 2,3 -c 1,4 -o distinct |
-            awk '
-            BEGIN{
-                m=0;n=0
-            }
-            NR==FNR{
-                cell[$1]
-            }
-            NR>FNR{
-                if($2!="-"){m+=1};
-                split($3, readArray, ",");
-                n+=length(readArray);
-                if($1 in cell){
-                    readCount[$1]+=length(readArray)
-                    if($2!="-"){barocodeGene[$1","$4]}
-                }
-            }
-            END{
-                asort(readCount)
-                totalRead=0
-                for(i=1;i<=length(readCount);i++){
-                    totalRead+=readCount[i]
-                }
-                meanRead=totalRead/length(readCount)
-                for(i in barocodeGene){
-                    split(i, tmp, ",")
-                    geneCount[tmp[1]]+=1
-                }
-                asort(geneCount)
-                if(length(geneCount)%2==1){
-                    medianGene=geneCount[(length(geneCount)+1)/2]
-                }else{
-                    medianGene=(geneCount[length(geneCount)/2] + geneCount[length(geneCount)/2+1])/2
-                }
-                print "'$percentage'\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
-            }
-            ' $cellList -
     fi
-    rm $readInfo
+}
+
+function calc_saturation {
+    ## percentage is  0.0 ≤ FLOAT ≤ 1.0
+    local percentage=$1
+    #local inputReadInfo=$2
+    bedtools groupby -g 2,3 -c 1,4 -o distinct -i $readInfo |
+        awk '
+        BEGIN{
+            m=0;n=0
+        }
+        NR==FNR{
+            cell[$1]
+        }
+        NR>FNR{
+            if($2!="-"){m+=1};
+            split($3, readArray, ",");
+            n+=length(readArray);
+            if($1 in cell){
+                readCount[$1]+=length(readArray)
+                if($2!="-"){barocodeGene[$1","$4]}
+            }
+        }
+        END{
+            asort(readCount)
+            totalRead=0
+            for(i=1;i<=length(readCount);i++){
+                totalRead+=readCount[i]
+            }
+            meanRead=totalRead/length(readCount)
+            for(i in barocodeGene){
+                split(i, tmp, ",")
+                geneCount[tmp[1]]+=1
+            }
+            asort(geneCount)
+            if(length(geneCount)%2==1){
+                medianGene=geneCount[(length(geneCount)+1)/2]
+            }else{
+                medianGene=(geneCount[length(geneCount)/2] + geneCount[length(geneCount)/2+1])/2
+            }
+            print "'$percentage'\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
+        }
+        ' $cellList -
 }
 
 ## Start time
@@ -171,9 +183,15 @@ currentTime=$(date +"%F %T")
 
 for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
 do
+    printf "Subsampling: %s\n" $i >&2
+    processBAM $i
+    printf "Processing BAM finished...\n" >&2
     calc_saturation $i
+    printf "calculation finished...\n" >&2
 done |
     jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePerCell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
+
+rm $readInfo
 
 ## End time
 currentTime=$(date +"%F %T")

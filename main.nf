@@ -7,7 +7,7 @@ nextflow.enable.dsl=2
 // NF-CORE MODULES
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
-include { STARSOLO; STARSOLO_COMPLEX; STAR_MKREF } from "./starsolo"
+include { STARSOLO; STARSOLO_COMPLEX; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MULT_SUMMARY; STARSOLO_MULT_UMI } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 include { CHECK_SATURATION } from "./sequencing_saturation"
@@ -97,7 +97,32 @@ workflow {
         )
         ch_genome_bam       = STARSOLO.out.bam
         ch_genome_bam_index = STARSOLO.out.bai
-        ch_starsolo_out     = STARSOLO.out.solo_out
+    }
+
+    if(params.soloMultiMappers != "Unique"){
+        STARSOLO_MULTIPLE(
+            STARSOLO.out.rawDir
+        )
+        CHECK_SATURATION(
+            ch_genome_bam,
+            STARSOLO_MULTIPLE.out.filteredDir,
+            ch_whitelist
+        )
+        STARSOLO_MULT_SUMMARY(
+            STARSOLO.out.cellReads_stats,
+            STARSOLO_MULTIPLE.out.filteredDir,
+            STARSOLO.out.summary_unique,
+            CHECK_SATURATION.out.outJSON
+        )
+        STARSOLO_MULT_UMI(
+            STARSOLO.out.cellReads_stats   
+        )
+    }else{
+        CHECK_SATURATION(
+            STARSOLO.out.bam,
+            STARSOLO.out.filteredDir,
+            ch_whitelist
+        )
     }
 
     ch_qualimap_multiqc           = Channel.empty()
@@ -107,16 +132,23 @@ workflow {
     )
     ch_qualimap_multiqc = QUALIMAP_RNASEQ.out.results
 
-    CHECK_SATURATION(
-        STARSOLO.out.bam,
-        STARSOLO.out.solo_out,
-        ch_whitelist
-    )
-    REPORT(
-        ch_starsolo_out,
-        ch_qualimap_multiqc,
-        CHECK_SATURATION.out.outJSON
-    )
+    if(params.soloMultiMappers != "Unique"){
+        REPORT(
+            STARSOLO_MULT_SUMMARY.out.summary_multiple,
+            STARSOLO_MULT_UMI.out.UMI_file_multiple,
+            STARSOLO_MULTIPLE.out.filteredDir,
+            ch_qualimap_multiqc,
+            CHECK_SATURATION.out.outJSON
+        )
+    }else{
+        REPORT(
+            STARSOLO.out.summary_unique,
+            STARSOLO.out.UMI_file_unique,
+            STARSOLO.out.filteredDir,
+            ch_qualimap_multiqc,
+            CHECK_SATURATION.out.outJSON
+        )
+    }
 }
 
 workflow mkref {

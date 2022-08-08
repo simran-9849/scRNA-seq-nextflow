@@ -8,7 +8,9 @@ process REPORT{
         enabled: params.outdir as boolean
 
     input:
-    tuple val(meta), path(starsolo_outdir)
+    tuple val(meta), path(starsolo_summary)
+    tuple val(meta), path(starsolo_UMI_file)
+    tuple val(meta), path(starsolo_filteredDir)
     tuple val(meta), path(qualimap_outdir)
     tuple val(meta), path(saturation_outJSON)
 
@@ -18,8 +20,11 @@ process REPORT{
     tuple val(meta), path("*raw.h5seurat"), emit: h5seurat
 
     script:
+    // Different input files names when including multi-gene reasds
+    def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
+    def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
     """
-    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(sampleName = "${meta.id}", starsolo_out = "$starsolo_outdir/Summary.csv", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", qualimap_gene_coverage = "$qualimap_outdir/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt", starsolo_bc = "$starsolo_outdir/UMIperCellSorted.txt", starsolo_matrixDir="$starsolo_outdir/filtered", nCPUs = "$task.cpus", saturation_json = "${saturation_outJSON}"), intermediates_dir = getwd(), knit_root_dir = getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
+    Rscript -e 'rmarkdown::render("$baseDir/bin/scRNA_report.Rmd", params = list(sampleName = "${meta.id}", starsolo_out = "${starsolo_summary}", qualimap_out = "$qualimap_outdir/rnaseq_qc_results.txt", qualimap_gene_coverage = "$qualimap_outdir/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt", starsolo_bc = "$starsolo_UMI_file", starsolo_matrixDir="${starsolo_filteredDir}", nCPUs = "$task.cpus", saturation_json = "${saturation_outJSON}"), intermediates_dir = getwd(), knit_root_dir = getwd(), output_dir = getwd(), output_file = "${meta.id}_report.html")'
 
     """
 }
