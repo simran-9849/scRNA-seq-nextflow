@@ -367,8 +367,6 @@ if(filtered_cells >= 150){
         group_by(cluster) %>%
         dplyr::relocate(gene, .before=1) %>%
         write_tsv(paste0(params$sampleName, "_DEG.tsv"))
-}else{
-    system(paste0("touch ", params$sampleName, "_DEG.tsv"))
 }
 ```
 

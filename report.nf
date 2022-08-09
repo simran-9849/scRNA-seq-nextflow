@@ -15,10 +15,10 @@ process REPORT{
     tuple val(meta), path(saturation_outJSON)
 
     output:
-    tuple val(meta), path("*report.html"), emit: report
+    tuple val(meta), path("*report.html") , emit: report
     tuple val(meta), path("*metrics.json"), emit: metrics
     tuple val(meta), path("*raw.h5seurat"), emit: h5seurat
-    tuple val(meta), path("*_DEG.tsv"), emit: DEGlist
+    tuple val(meta), path("*_DEG.tsv")    , optional: true, emit: DEGlist
 
     script:
     // Different input files names when including multi-gene reasds
