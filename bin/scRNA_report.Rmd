@@ -433,8 +433,8 @@ starsolo_summary %>%
                        "Q30 Bases in RNA read",
                        "Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
-                       "Reads Mapped to Gene: Unique+Multipe Gene",
-                       "Reads Mapped to GeneFull: Unique+Multipe GeneFull",
+                       "Reads Mapped to Gene: Unique+Multiple Gene",
+                       "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
