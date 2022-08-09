@@ -11,6 +11,7 @@ include { STARSOLO; STARSOLO_COMPLEX; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MU
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 include { CHECK_SATURATION } from "./sequencing_saturation"
+include { GET_VERSIONS } from "./present_version"
 include { REPORT } from "./report"
 
 
@@ -117,11 +118,17 @@ workflow {
         STARSOLO_MULT_UMI(
             STARSOLO.out.cellReads_stats   
         )
+        GET_VERSIONS(
+            CHECK_SATURATION.out.outJSON
+        )
     }else{
         CHECK_SATURATION(
             STARSOLO.out.bam,
             STARSOLO.out.filteredDir,
             ch_whitelist
+        )
+        GET_VERSIONS(
+            CHECK_SATURATION.out.outJSON
         )
     }
 
@@ -138,7 +145,8 @@ workflow {
             STARSOLO_MULT_UMI.out.UMI_file_multiple,
             STARSOLO_MULTIPLE.out.filteredDir,
             ch_qualimap_multiqc,
-            CHECK_SATURATION.out.outJSON
+            CHECK_SATURATION.out.outJSON,
+            GET_VERSIONS.out.versions
         )
     }else{
         REPORT(
@@ -146,7 +154,8 @@ workflow {
             STARSOLO.out.UMI_file_unique,
             STARSOLO.out.filteredDir,
             ch_qualimap_multiqc,
-            CHECK_SATURATION.out.outJSON
+            CHECK_SATURATION.out.outJSON,
+            GET_VERSIONS.out.versions
         )
     }
 }

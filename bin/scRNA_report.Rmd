@@ -16,6 +16,7 @@ params:
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
   saturation_json: "saturation_out.json"
+  version_json: "versions.json"
   nCPUs: 10
   nMem: 10000000000.0
   nFeature_RNA_lower: 200
@@ -266,8 +267,8 @@ d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 d <- starsolo_summary %>% 
     filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
-                       "Reads Mapped to Gene: Unique+Multipe Gene",
-                       "Reads Mapped to GeneFull: Unique+Multipe GeneFull",
+                       "Reads Mapped to Gene: Unique+Multiple Gene",
+                       "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
@@ -451,4 +452,34 @@ starsolo_summary %>%
     mutate(sampleID=params$sampleName) %>% 
     pivot_wider(sampleID, names_from = item, values_from= value) %>% 
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
+```
+
+Running Info {data-orientation=rows}
+====================
+
+Row
+----------
+
+### Running Information
+
+```{r}
+version_info <- fromJSON(params$version_json)
+version_tbl <- tribble(
+  ~term, ~value,
+  "Sample ID", version_info$sampleID,
+  "Pipeline Version", version_info$pipeline_version,
+  "Reference Dir", version_info$referenceDir,
+  "Reference GTF", version_info$referenceGTF,
+  "STAR Version", version_info$STAR_version,
+  "Whitelist Matching", version_info$soloCBmatchWLtype,
+  "UMIfiltering", version_info$soloUMIfiltering,
+  "UMIdedup", version_info$soloUMIdedup,
+  "Cell Calling", version_info$soloCellFilter,
+  "includeIntron", version_info$includeIntron,
+  "includeMultiReads", version_info$includeMultiReads
+)
+names(version_tbl) <- c("", "")
+version_tbl %>% 
+    kbl() %>% 
+    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
