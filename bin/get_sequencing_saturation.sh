@@ -112,7 +112,7 @@ function processBAM {
             ' $whiteList - |
             sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
     else
-        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 |
+        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 $inputBAM |
             awk '
             {
                 readID=$1;
@@ -121,7 +121,7 @@ function processBAM {
                         CB=substr($i, 6)
                     }else if($i~/^UB/){
                         UMI=substr($i, 6)
-                    }else if($i~/^GX/){
+                    }else if($i~/^'$geneTag'/){
                         gene=substr($i, 6)
                     }
                 };
