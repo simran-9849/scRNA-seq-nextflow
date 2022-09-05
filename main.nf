@@ -35,6 +35,11 @@ def create_fastq_channel(LinkedHashMap row) {
 
 
 workflow {
+    // default workflow scRNA-seq
+    scRNAseq()
+}
+
+workflow scRNAseq {
     // check mandatory params
     if (!params.input) { exit 1, 'Input samplesheet not specified!' }
     if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
@@ -171,5 +176,264 @@ workflow mkref {
     STAR_MKREF(
         ch_genomeFasta,
         ch_genomeGTF
+    )
+}
+
+// sub-workflow for vdj analysis
+
+include { CAT_TRIM_FASTQ_VDJ } from "./vdj/cat_trim_fastq_vdj"
+include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ } from "./vdj/starsolo_vdj"
+include { QUALIMAP_VDJ } from "./vdj/qualimap_vdj"
+include { CHECK_SATURATION_VDJ } from "./vdj/sequencing_saturation_vdj.nf"
+include { TRUST4_VDJ } from "./vdj/trust4_vdj"
+include { GET_VERSIONS_VDJ } from "./vdj/present_version_vdj"
+include { REPORT_VDJ } from "./vdj/report_vdj"
+
+def create_fastq_channel_featureTypes(LinkedHashMap row) {
+    def meta = [:]
+    meta.id           = row.sample
+
+    def array = []
+    if (!file(row.fastq_1).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.bc_read}"
+    }
+
+    if (!file(row.fastq_2).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.cDNA_read}"
+    }
+
+    if(!row.feature_types){
+        exit 1, "ERROR: Please check input samplesheet -> feature_types column does not exist!\n"
+    }
+
+    meta.feature_types = row.feature_types
+    array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+
+    return array
+}
+
+workflow vdj {
+    vdj_process()
+    vdj_report(
+        vdj_process.out.starsolo_summary,
+        vdj_process.out.starsolo_bam,
+        vdj_process.out.starsolo_umi,
+        vdj_process.out.starsolo_filteredDir,
+        vdj_process.out.qualimap_outDir,
+        vdj_process.out.saturation_json
+    )
+}
+
+workflow vdj_process {    
+    main:
+    // check mandatory params
+    if (!params.input) { exit 1, 'Input samplesheet not specified!' }
+    if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
+    if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
+    
+    // use different sampleList for vdj pipeline
+    // one more column: feature_types
+    Channel
+        .fromPath(params.input)
+        .splitCsv(header:true)
+        .map{ create_fastq_channel_featureTypes(it) }
+        .map {
+            meta, fastq ->
+                // meta.id = meta.id.split('_')[0..-2].join('_')
+                [ meta, fastq ] }
+        .groupTuple(by: [0])
+        .map {
+            meta, fastq ->
+                return [ meta, fastq.flatten() ]
+        }
+        .set { ch_fastq }
+
+    // process vdj first
+    ch_bc_read = Channel.empty()
+    ch_cDNA_read = Channel.empty()
+    CAT_TRIM_FASTQ_VDJ( ch_fastq )
+    if ( params.bc_read == "fastq_1" ){
+        ch_bc_read = CAT_TRIM_FASTQ_VDJ.out.read1
+        ch_cDNA_read = CAT_TRIM_FASTQ_VDJ.out.read2
+    }else{
+        ch_bc_read = CAT_TRIM_FASTQ_VDJ.out.read2
+        ch_cDNA_read = CAT_TRIM_FASTQ_VDJ.out.read1
+    }
+
+    ch_genomeDir = file(params.genomeDir)
+    ch_genomeGTF = file(params.genomeGTF)
+    ch_whitelist = file(params.whitelist)
+    
+    ch_genome_bam                 = Channel.empty()
+    ch_genome_bam_index           = Channel.empty()
+    ch_star_multiqc               = Channel.empty()
+
+    // force using parameters for 5'-RNAseq
+    params.soloStrand = "Reverse"
+
+    STARSOLO_VDJ(
+        ch_cDNA_read,
+        ch_bc_read,
+        ch_genomeDir,
+        ch_genomeGTF,
+        ch_whitelist,
+    )
+    ch_genome_bam       = STARSOLO_VDJ.out.bam
+    ch_genome_bam_index = STARSOLO_VDJ.out.bai
+
+    if(params.soloMultiMappers != "Unique"){
+        STARSOLO_MULTIPLE_VDJ(
+            STARSOLO_VDJ.out.rawDir
+        )
+        CHECK_SATURATION_VDJ(
+            ch_genome_bam,
+            STARSOLO_MULTIPLE_VDJ.out.filteredDir,
+            ch_whitelist
+        )
+        STARSOLO_MULT_SUMMARY_VDJ(
+            STARSOLO_VDJ.out.cellReads_stats,
+            STARSOLO_MULTIPLE_VDJ.out.filteredDir,
+            STARSOLO_VDJ.out.summary_unique,
+            CHECK_SATURATION_VDJ.out.outJSON
+        )
+        STARSOLO_MULT_UMI_VDJ(
+            STARSOLO_VDJ.out.cellReads_stats   
+        )
+        //GET_VERSIONS(
+        //    CHECK_SATURATION_VDJ.out.outJSON
+        //)
+    }else{
+        CHECK_SATURATION_VDJ(
+            STARSOLO_VDJ.out.bam,
+            STARSOLO_VDJ.out.filteredDir,
+            ch_whitelist
+        )
+        //GET_VERSIONS(
+        //    CHECK_SATURATION_VDJ.out.outJSON
+        //)
+    }
+
+    ch_qualimap_multiqc           = Channel.empty()
+    QUALIMAP_VDJ(
+        STARSOLO_VDJ.out.bam,
+        ch_genomeGTF
+    )
+    ch_qualimap_multiqc = QUALIMAP_VDJ.out.results
+    
+    emit:
+    starsolo_summary = STARSOLO_VDJ.out.summary_unique
+    starsolo_bam = STARSOLO_VDJ.out.bam
+    starsolo_umi = STARSOLO_VDJ.out.UMI_file_unique
+    starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
+    qualimap_outDir = QUALIMAP_VDJ.out.results
+    saturation_json = CHECK_SATURATION_VDJ.out.outJSON
+}
+
+workflow vdj_report {
+    take:
+    starsolo_summary
+    starsolo_bam
+    starsolo_umi
+    starsolo_filteredDir
+    qualimap_outDir
+    saturation_json
+
+    main:
+    ch_vdj_coordinate = file(params.trust4_vdj_coordinate)
+    ch_vdj_reference = file(params.trust4_vdj_imgt)
+    ch_whitelist = file(params.whitelist)
+    TRUST4_VDJ(
+        starsolo_bam,
+        starsolo_summary,
+        ch_vdj_coordinate,
+        ch_vdj_reference,
+        ch_whitelist
+    )
+
+    starsolo_summary
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ starsolo_summary_collapsed }
+
+    starsolo_umi
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ starsolo_umi_collapsed }
+
+    starsolo_filteredDir
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ starsolo_filteredDir_collapsed }
+
+    qualimap_outDir
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ qualimap_outDir_collapsed }
+
+    saturation_json
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ saturation_json_collapsed }
+
+    TRUST4_VDJ.out.metricsJSON
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ trust4_metrics_collapsed }
+
+    TRUST4_VDJ.out.kneeData
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ trust4_kneeData_collapsed }
+
+    TRUST4_VDJ.out.cloneType
+    .map {
+        meta, file ->
+            //if( meta.feature_types == "GEX" )
+                [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ trust4_cloneType_collapsed }
+
+    GET_VERSIONS_VDJ()
+
+    //starsolo_summary_collapsed.view()
+    REPORT_VDJ(
+        starsolo_summary_collapsed,
+        starsolo_umi_collapsed,
+        starsolo_filteredDir_collapsed,
+        qualimap_outDir_collapsed,
+        saturation_json_collapsed,
+        trust4_metrics_collapsed,
+        trust4_kneeData_collapsed,
+        trust4_cloneType_collapsed,
+        GET_VERSIONS_VDJ.out.versions
     )
 }

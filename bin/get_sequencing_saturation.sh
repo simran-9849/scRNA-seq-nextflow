@@ -181,7 +181,8 @@ function calc_saturation {
 currentTime=$(date +"%F %T")
 >&2 printf "Calculating sequencing saturation started at %s %s\n" $currentTime
 
-for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
+##for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
+for i in {0.05,0.1,0.15}
 do
     printf "Subsampling: %s\n" $i >&2
     processBAM $i
