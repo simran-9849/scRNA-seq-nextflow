@@ -36,6 +36,9 @@ RUN mamba install -c conda-forge -c bioconda plotly samtools==1.15 star==2.7.10a
 #### install RhpcBLASctl to control BLAS threads
 ##RUN mamba install r-rhpcblasctl
 
+## install trust4 for VDJ analysis
+RUN mamba install -c conda-forge -c bioconda trust4
+
 ## copy entrypoint.sh
 ##COPY entrypoint.sh .
 
