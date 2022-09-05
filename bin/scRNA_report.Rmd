@@ -224,7 +224,8 @@ umi_dist <-  umi_dist %>%
 fig <- plot_ly(data = umi_dist, x = ~cell, y = ~UMI, type = 'scatter', mode = 'lines',
                color = ~group, colors = c('grey', '#002366'),
                hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
-               line = list(width = 3))
+               line = list(width = 3),
+               height = 400, width = 360)
 fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
 config_plotly_fig(fig) %>% toWebGL()
 
@@ -486,4 +487,11 @@ names(version_tbl) <- c("", "")
 version_tbl %>% 
     kbl() %>% 
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+```{js}
+// set knee plot margin to auto
+$( document ).ready(function() {
+    document.querySelector(".plot-container").querySelector(".svg-container").style.margin = "auto";
+});
 ```
