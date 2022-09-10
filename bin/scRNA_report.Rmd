@@ -141,6 +141,8 @@ if(filtered_cells >= 150){
 .chart-title {
   font-size: 1.2rem;
   font-weight: 700;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 ```
 
@@ -494,4 +496,13 @@ version_tbl %>%
 $( document ).ready(function() {
     document.querySelector(".plot-container").querySelector(".svg-container").style.margin = "auto";
 });
+
+// set table left and right margin
+$( document ).ready(function() {
+    $( "div.chart-stage:has(table.lightable-paper)" ).each(function(){
+        this.style.marginLeft = "10px"; 
+        this.style.marginRight = "10px";
+    });
+});
+
 ```
