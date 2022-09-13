@@ -17,7 +17,7 @@ process TRUST4_VDJ {
     script:
     if(meta.feature_types =~ /VDJ-[TB]/){
     """
-    run-trust4 -f ${trust4_vdj_coordinate} --ref ${trust4_vdj_imgt} \\
+    run-trust4 -f ${trust4_vdj_refGenome_fasta} --ref ${trust4_vdj_imgt_fasta} \\
     -b ${starsoloBAM} \\
     --barcode CB \\
     --barcodeWhitelist $whitelist \\
