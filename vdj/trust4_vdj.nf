@@ -5,8 +5,8 @@ process TRUST4_VDJ {
     input:
     tuple val(meta), path(starsoloBAM)
     tuple val(meta), path(starsoloSummary)
-    path(trust4_vdj_coordinate)
-    path(trust4_vdj_imgt)
+    path(trust4_vdj_refGenome_fasta)
+    path(trust4_vdj_imgt_fasta)
     path(whitelist)
 
     output:
