@@ -339,14 +339,14 @@ workflow vdj_report {
     saturation_json
 
     main:
-    ch_vdj_coordinate = file(params.trust4_vdj_coordinate)
-    ch_vdj_reference = file(params.trust4_vdj_imgt)
+    ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
+    ch_vdj_imgt_fasta = file(params.trust4_vdj_imgt_fasta)
     ch_whitelist = file(params.whitelist)
     TRUST4_VDJ(
         starsolo_bam,
         starsolo_summary,
-        ch_vdj_coordinate,
-        ch_vdj_reference,
+        ch_vdj_refGenome_fasta,
+        ch_vdj_imgt_fasta,
         ch_whitelist
     )
 
