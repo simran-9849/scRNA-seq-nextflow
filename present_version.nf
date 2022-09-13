@@ -15,8 +15,6 @@ process GET_VERSIONS {
     def includeIntron = params.soloFeatures == "Gene" ? "FALSE" : "TRUE"
     def includeMultiReads = params.soloMultiMappers == "Unique" ? "FALSE" : "TRUE"
     """
-    ## starscope version, adjust manually
-    starscope_version="v1.0.0"
     ## fastqc version
     fastqc_version=\$(fastqc --version | awk '{print \$2}')
     ## cutadapt version
@@ -32,7 +30,7 @@ process GET_VERSIONS {
     cat<<-EOF > versions.json
 	{
 	  "sampleID": "${meta.id}",
-	  "pipeline_version": "\$starscope_version",
+	  "pipeline_version": "$workflow.manifest.version",
 	  "referenceDir": "${params.genomeDir}",
 	  "referenceGTF": "${params.genomeGTF}",
 	  "STAR_version": "\$star_version",
