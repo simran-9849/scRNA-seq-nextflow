@@ -30,3 +30,4 @@ dependencies:
   - qualimap
   - r-seuratdisk
   - r-rhpcblasctl
+  - trust4
