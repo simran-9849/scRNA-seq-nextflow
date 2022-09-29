@@ -5,7 +5,7 @@ process STARSOLO {
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean,
         saveAs: { filename ->
-        if(filename=~/sortedByCoord.out.bam/){
+        if(!params.publishBAM && filename=~/sortedByCoord.out.bam/){
             return null
         }else if(filename=~/Solo.out/){
             return filename.split("/")[-1]
