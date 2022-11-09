@@ -67,6 +67,28 @@ config_plotly_fig <- function(fig, ...){
     )
 }
 
+## decide whether to incldue each page
+## conditional page solution is from: https://stackoverflow.com/questions/59202693/how-can-i-create-a-conditional-flexdashboard-layout
+if(is.null(params$starsolo_matrixDir) || params$starsolo_matrixDir == "") {
+    include_gex <- FALSE
+}else{
+    include_gex <- TRUE
+}
+if(is.null(params$VDJ_T_metrics) || params$VDJ_T_metrics == "") {
+    include_tcr <- FALSE
+}else{
+    include_tcr <- TRUE
+}
+if(is.null(params$VDJ_B_metrics) || params$VDJ_B_metrics == "") {
+    include_bcr <- FALSE
+}else{
+    include_bcr <- TRUE
+}
+```
+
+`r if(!include_gex){"\\begin{comment}"} else {NULL}`
+
+```{r process_gex, include = FALSE, eval = include_gex}
 starsolo_summary <- read_csv(params$starsolo_out,
                              col_names = c("item", "value")) %>%
                              mutate(
@@ -81,9 +103,7 @@ exon_ratio <- system(exon_cmd, intern = TRUE)
 
 intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
 intron_ratio <- system(intron_cmd, intern = TRUE)
-```
 
-```{r process_gex, include = FALSE}
 STARSolo <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
 seuratData <- CreateSeuratObject(counts=STARSolo,
                              min.cells=0,
@@ -161,7 +181,7 @@ Row
 
 ### Estimated Number of Cells
 
-```{r}
+```{r eval = include_gex}
 cellNum <- starsolo_summary %>% 
     filter(item == "Estimated Number of Cells") %>% 
     pull(value)
@@ -170,7 +190,7 @@ valueBox(cellNum, icon = "fa-circle-notch", color = "info")
 
 ### Mean Reads per Cell
 
-```{r}
+```{r eval = include_gex}
 readsMean <- starsolo_summary %>% 
     filter(item == "Mean Reads per Cell") %>% 
     pull(value)
@@ -179,7 +199,7 @@ valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 
 ### Median Genes per Cell
 
-```{r}
+```{r eval = include_gex}
 medianGenePerCell <- starsolo_summary %>% 
     filter(str_detect(item, regex("Median Gene(Full)* per Cell"))) %>% 
     pull(value)
@@ -191,7 +211,7 @@ Row
 
 ### Cell Stats
 
-```{r}
+```{r eval = include_gex}
 d <- starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
@@ -216,7 +236,7 @@ d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 
 ### Knee Plot
 
-```{r}
+```{r eval = include_gex}
 umi_dist <- read_tsv(params$starsolo_bc, col_names =c("UMI"))
 cellNum <- str_replace(cellNum, ",", "") %>% as.numeric()
 umi_dist <-  umi_dist %>%
@@ -255,7 +275,7 @@ Row
 
 ### Sequencing Stats
 
-```{r}
+```{r eval = include_gex}
 d <- starsolo_summary %>% 
     filter(item %in% c("Number of Reads",
                        "Reads With Valid Barcodes",
@@ -271,7 +291,7 @@ d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 
 ### Mapping Stats
 
-```{r}
+```{r eval = include_gex}
 d <- starsolo_summary %>% 
     filter(item %in% c("Reads Mapped to Genome: Unique+Multiple",
                        "Reads Mapped to Genome: Unique",
@@ -290,7 +310,7 @@ Row
 
 ### Cell Cluster (colored by cell group)
 
-```{r}
+```{r eval = include_gex}
 ## Only plot cluster when there are more than 150 filtered cells
 if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
@@ -323,7 +343,7 @@ if(filtered_cells >= 150){
 
 ### Cell Cluster (colored by read depth)
 
-```{r}
+```{r eval = include_gex}
 if(filtered_cells >= 150){
 clusterData <- clusterData %>%
     mutate(log10_UMI = log10(nCount_RNA))
@@ -349,7 +369,7 @@ Row {style="margin-right: 8px"}
 
 ### Marker Genes of Clusters (top5) {style="width: 100% !important"}
 
-```{r}
+```{r eval = include_gex}
 if(filtered_cells >= 150){
     markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
     if("cluster" %in% colnames(markerGenes)){
@@ -370,7 +390,7 @@ if(filtered_cells >= 150){
 }
 ```
 
-```{r include=FALSE}
+```{r include=FALSE, eval = include_gex}
 if(filtered_cells >= 150 && ("cluster" %in% colnames(markerGenes))){
     markerGenes %>%
         group_by(cluster) %>%
@@ -384,13 +404,13 @@ Row
 
 ### Cell Metrics
 
-```{r}
+```{r eval = include_gex}
 qcPlot
 ```
 
 ### Gene Coverage
 
-```{r}
+```{r eval = include_gex}
 read_tsv(params$qualimap_gene_coverage) %>%
     ggplot(aes(x=`#Transcript position`, y=`Transcript coverage profile`)) +
     geom_line(size=1, color = "#551a8b", alpha=0.8) +
@@ -404,7 +424,7 @@ Row
 
 ### Sequencing Saturation
 
-```{r}
+```{r eval = include_gex}
 saturation_data <- fromJSON(params$saturation_json) %>%
     mutate(reads=as.numeric(reads),
            saturation=as.numeric(saturation),
@@ -419,7 +439,7 @@ plot_ly(saturation_data, x = ~reads, y= ~saturation,
 
 ### Median Genes per Cell
 
-```{r}
+```{r eval = include_gex}
 plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Mean read per cell: %{x}<br>Median gene per cell: %{y}<extra></extra>') %>%
@@ -427,7 +447,7 @@ plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
     toWebGL()
 ```
 
-```{r include=FALSE}
+```{r include=FALSE, eval = include_gex}
 starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
@@ -462,12 +482,16 @@ starsolo_summary %>%
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
 ```
 
+`r if(!include_gex) {"\\end{comment}"} else {NULL}`
+
+`r if(!include_tcr) {"\\begin{comment}"} else {NULL}`
+
 VDJ-T {data-orientation=rows}
 ====================
 
 <h2 style="margin-top: 0.5rem; font-weight: bold;">Sample: `r params$sampleName` (VDJ-T)</h2>
 
-```{r include=FALSE}
+```{r include=FALSE, eval = include_tcr}
 vdj_t_cloneType <- read_tsv(params$VDJ_T_cloneType) %>%
     arrange(desc(Frequency))
 vdj_t_cloneType <- vdj_t_cloneType %>%
@@ -481,23 +505,23 @@ Row
 ### Estimated Number of Cells
 
 
-```{r include = FALSE}
+```{r include = FALSE, eval = include_tcr}
 vdj_t_metrics <- fromJSON(params$VDJ_T_metrics)
 ```
 
-```{r}
+```{r eval = include_tcr}
 valueBox(vdj_t_metrics$cells %>% as.numeric() %>% label_comma()(), icon = "fa-circle-notch", color = "info")
 ```
 
 ### Mean Reads per Cell
 
-```{r}
+```{r eval = include_tcr}
 valueBox(vdj_t_metrics$meanReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
 ```
 
 ### Total Clonetypes Discovered
 
-```{r}
+```{r eval = include_tcr}
 valueBox(nrow(vdj_t_cloneType) %>% label_comma()(), icon = "fa-barcode", color = "warning")
 ```
 
@@ -506,7 +530,7 @@ Row
 
 ### VDJ Stats
 
-```{r}
+```{r eval = include_tcr}
 ##Estimated Number of Cells
 ##Reads in Cells Mapped to Gene
 ##Fraction of Reads in Cells
@@ -540,7 +564,7 @@ vdj_t_tbl %>%
 
 ### Knee Plot
 
-```{r}
+```{r eval = include_tcr}
 cellNum <- as.numeric(vdj_t_metrics$cells)
 vdj_t_knee <- read_tsv(params$VDJ_T_kneeData, col_names = c("CB", "UMI"))
 vdj_t_knee <- vdj_t_knee %>% 
@@ -565,7 +589,7 @@ Row
 
 ### Sequencing Stats
 
-```{r}
+```{r eval = include_tcr}
 ##Number of Reads
 ##Reads With Valid Barcodes
 ##Sequencing Saturation
@@ -591,7 +615,7 @@ vdj_t_tbl %>%
 
 ### Mapping Stats
 
-```{r}
+```{r eval = include_tcr}
 ##Reads Mapped to Genome: Unique+Multiple
 ##Reads Mapped to Genome: Unique
 ##Reads mapped to any V(D)J gene
@@ -622,7 +646,7 @@ Row
 
 ### V(D)J Annotation & T Cell Expression
 
-```{r}
+```{r eval = include_tcr}
 ##Cells with productive V-J spanning pair
 ##Cells with productive V-J spanning (IGK, IGH) pair
 ##Cells with productive V-J spanning (IGL, IGH) pair
@@ -653,7 +677,7 @@ vdj_t_tbl %>%
 
 ### Top 10 Clonetypes
 
-```{r}
+```{r eval = include_tcr}
 fig <- plot_ly(data = vdj_t_cloneType %>% filter(id<=10), x = ~id, y = ~Frequency, type = "bar")
 fig <- layout(fig, showlegend = FALSE)
 config_plotly_fig(fig)
@@ -664,12 +688,16 @@ Row {style="margin-right: 8px"}
 
 ### Identified Clonetypes (top 1000) {style="width: 100% !important"}
 
-```{r}
+```{r eval = include_tcr}
 vdj_t_cloneType %>%
     filter(id <= 1000) %>%
     DT::datatable(rownames = FALSE, width = "100%",
                   options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
+
+`r if(!include_tcr) {"\\end{comment}"} else {NULL}`
+
+`r if(!include_bcr) {"\\begin{comment}"} else {NULL}`
 
 VDJ-B {data-orientation=rows}
 ====================
@@ -677,7 +705,7 @@ VDJ-B {data-orientation=rows}
 <h2 style="margin-top: 0.5rem; font-weight: bold;">Sample: `r params$sampleName` (VDJ-B)</h2>
 
 
-```{r include=FALSE}
+```{r include=FALSE, eval = include_bcr}
 vdj_b_cloneType <- read_tsv(params$VDJ_B_cloneType) %>%
     arrange(desc(Frequency))
 vdj_b_cloneType <- vdj_b_cloneType %>%
@@ -691,23 +719,23 @@ Row
 ### Estimated Number of Cells
 
 
-```{r include = FALSE}
+```{r include = FALSE, eval = include_bcr}
 vdj_b_metrics <- fromJSON(params$VDJ_B_metrics)
 ```
 
-```{r}
+```{r eval = include_bcr}
 valueBox(vdj_b_metrics$cells %>% as.numeric() %>% label_comma()(), icon = "fa-circle-notch", color = "info")
 ```
 
 ### Mean Reads per Cell
 
-```{r}
+```{r eval = include_bcr}
 valueBox(vdj_b_metrics$meanReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
 ```
 
 ### Total Clonetypes Discovered
 
-```{r}
+```{r eval = include_bcr}
 valueBox(nrow(vdj_b_cloneType) %>% label_comma()(), icon = "fa-barcode", color = "warning")
 ```
 
@@ -716,7 +744,7 @@ Row
 
 ### VDJ Stats
 
-```{r}
+```{r eval = include_bcr}
 ##Estimated Number of Cells
 ##Reads in Cells Mapped to Gene
 ##Fraction of Reads in Cells
@@ -750,7 +778,7 @@ vdj_b_tbl %>%
 
 ### Knee Plot
 
-```{r}
+```{r eval = include_bcr}
 cellNum <- as.numeric(vdj_b_metrics$cells)
 vdj_b_knee <- read_tsv(params$VDJ_B_kneeData, col_names = c("CB", "UMI"))
 vdj_b_knee <- vdj_b_knee %>% 
@@ -775,7 +803,7 @@ Row
 
 ### Sequencing Stats
 
-```{r}
+```{r eval = include_bcr}
 ##Number of Reads
 ##Reads With Valid Barcodes
 ##Sequencing Saturation
@@ -802,7 +830,7 @@ vdj_b_tbl %>%
 
 ### Mapping Stats
 
-```{r}
+```{r eval = include_bcr}
 ##Reads Mapped to Genome: Unique+Multiple
 ##Reads Mapped to Genome: Unique
 ##Reads mapped to any V(D)J gene
@@ -832,7 +860,7 @@ Row
 
 ### V(D)J Annotation & T Cell Expression
 
-```{r}
+```{r eval = include_bcr}
 ##Cells with productive V-J spanning pair
 ##Cells with productive V-J spanning (IGK, IGH) pair
 ##Cells with productive V-J spanning (IGL, IGH) pair
@@ -862,7 +890,7 @@ vdj_b_tbl %>%
 
 ### Top 10 Clonetypes
 
-```{r}
+```{r eval = include_bcr}
 fig <- plot_ly(data = vdj_b_cloneType %>% filter(id<=10), x = ~id, y = ~Frequency, type = "bar")
 fig <- layout(fig, showlegend = FALSE)
 config_plotly_fig(fig)
@@ -873,13 +901,14 @@ Row {style="margin-right: 8px"}
 
 ### Identified Clonetypes (top 1000) {style="width: 100% !important"}
 
-```{r}
+```{r eval = include_bcr}
 vdj_b_cloneType %>%
     filter(id <= 1000) %>%
     DT::datatable(rownames = FALSE, width = "100%",
                   options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
 
+`r if(!include_bcr) {"\\end{comment}"} else {NULL}`
 
 Running Info {data-orientation=rows}
 ====================
