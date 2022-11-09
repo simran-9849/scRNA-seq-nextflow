@@ -41,27 +41,51 @@ process CAT_TRIM_FASTQ {
         def read1 = []
         def read2 = []
         readList.eachWithIndex{ v, ix -> ( ix & 1 ? read2 : read1 ) << v }
-        """
-        cat ${read1.sort().join(' ')} > ${prefix}_1.merged.fq.gz
-        cat ${read2.sort().join(' ')} > ${prefix}_2.merged.fq.gz
-
-        cutqc.sh ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz \\
-        ${prefix}_cutqc_report.html \\
-        $baseDir/bin/fastqc_report.Rmd \\
-        -m $params.trimLength \\
-        -j $task.cpus \\
-        -q 0 \\
-        -Q 30,30 \\
-        $params.trimOpt
-
-        ## remove merged fq.gz
-        rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
-
-        cat <<-END_VERSIONS > versions.yml
-        ${getProcessName(task.process)}:
-        ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-        END_VERSIONS
-        """
+        if(read1.size == 1 && read2.size == 1){
+            """
+            ln -s ${read1.sort().join(' ')} ${prefix}_1.merged.fq.gz
+            ln -s ${read2.sort().join(' ')} ${prefix}_2.merged.fq.gz
+            
+            cutqc.sh ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz \\
+            ${prefix}_cutqc_report.html \\
+            $baseDir/bin/fastqc_report.Rmd \\
+            -m $params.trimLength \\
+            -j $task.cpus \\
+            -q 0 \\
+            -Q 30,30 \\
+            $params.trimOpt
+            
+            ## remove merged fq.gz
+            rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
+            
+            cat <<-END_VERSIONS > versions.yml
+            ${getProcessName(task.process)}:
+            ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }else{
+            """
+            cat ${read1.sort().join(' ')} > ${prefix}_1.merged.fq.gz
+            cat ${read2.sort().join(' ')} > ${prefix}_2.merged.fq.gz
+            
+            cutqc.sh ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz \\
+            ${prefix}_cutqc_report.html \\
+            $baseDir/bin/fastqc_report.Rmd \\
+            -m $params.trimLength \\
+            -j $task.cpus \\
+            -q 0 \\
+            -Q 30,30 \\
+            $params.trimOpt
+            
+            ## remove merged fq.gz
+            rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
+            
+            cat <<-END_VERSIONS > versions.yml
+            ${getProcessName(task.process)}:
+            ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+            END_VERSIONS
+            """
+        }
     }else{
         exit 1, 'Please provide both the read1 and the read2'
     }
