@@ -119,6 +119,8 @@ process STARSOLO_COMPLEX {
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
     """
+    ## Added "--outBAMsortingBinsN 300" option to solve sorting RAM issue when BAM is too large
+    ## Refer to: https://github.com/alexdobin/STAR/issues/870
     STAR --runThreadN $task.cpus \\
     --genomeDir $index \\
     --sjdbGTFfile $gtf \\
@@ -142,8 +144,9 @@ process STARSOLO_COMPLEX {
     --soloMultiMappers $params.soloMultiMappers \\
     --soloFeatures $params.soloFeatures \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate
-
+    --outSAMtype BAM SortedByCoordinate \\
+    --outBAMsortingBinsN 300
+    
     samtools index *.bam
 
     pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
