@@ -47,6 +47,8 @@ process STARSOLO {
 
 
     """
+    ## Added "--outBAMsortingBinsN 300" option to solve sorting RAM issue when BAM is too large
+    ## Refer to: https://github.com/alexdobin/STAR/issues/870
     STAR --runThreadN $task.cpus \\
     --genomeDir $index \\
     --sjdbGTFfile $gtf \\
@@ -72,7 +74,8 @@ process STARSOLO {
     --soloCellFilter $params.soloCellFilter \\
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate
+    --outSAMtype BAM SortedByCoordinate \\
+    --outBAMsortingBinsN 300
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
