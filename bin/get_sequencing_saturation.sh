@@ -209,14 +209,18 @@ cut -f 2,3 $readInfo |
     sort --parallel $thread -T ./ -k 1,1n > $preseqR_UMI_hist
 ## Get gene hist for preseqR
 ## totalGeneCount summarizes all genes from different barcodes
+tmpReadFile=$(mktemp -p ./)
 awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellList $readInfo |
     sort --parallel $thread -T ./ |
-    uniq -c > $totalGeneCount
-awk '{print $1}' $totalGeneCount |
+    uniq -c > $tmpReadFile
+wc -l $tmpReadFile | awk '{print $1}' > $totalGeneCount
+awk '{print $1}' $tmpReadFile |
     sort --parallel $thread -T ./ |
     uniq -c |
     awk '{print $2"\t"$1}' |
-    sort --parallel $thread -T ./ -k 1,1n > $genes_output
+    sort --parallel $thread -T ./ -k 1,1n > $preseqR_gene_hist
+
+rm $tmpReadFile
 
 rm $readInfo
 
