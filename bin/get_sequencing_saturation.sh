@@ -49,12 +49,17 @@ fi
 multiMapper="unique"
 thread=4
 
+## Inputs
 whiteList=$1
 cellList=$2
 multiMapper=$3
 inputBAM=$4
 thread=$5
+## Outputs
 outputJSON=$6
+preseqR_UMI_hist=$7
+preseqR_gene_hist=$8
+totalGeneCount=$9
 
 if [[ ! -f $whiteList ]] && [[ $whiteList != "None" ]]
 then
@@ -191,6 +196,27 @@ do
     printf "calculation finished...\n" >&2
 done |
     jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePerCell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
+
+## The last loop generates readInfo of the whole bam (percentage = 1)
+## Get UMI hist for preseqR
+cut -f 2,3 $readInfo |
+    sort --parallel $thread -T ./ |
+    uniq -c |
+    awk '{print $1}' |
+    sort --parallel $thread -T ./ |
+    uniq -c |
+    awk '{print $2"\t"$1}' |
+    sort --parallel $thread -T ./ -k 1,1n > $preseqR_UMI_hist
+## Get gene hist for preseqR
+## totalGeneCount summarizes all genes from different barcodes
+awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellList $readInfo |
+    sort --parallel $thread -T ./ |
+    uniq -c > $totalGeneCount
+awk '{print $1}' $totalGeneCount |
+    sort --parallel $thread -T ./ |
+    uniq -c |
+    awk '{print $2"\t"$1}' |
+    sort --parallel $thread -T ./ -k 1,1n > $genes_output
 
 rm $readInfo
 

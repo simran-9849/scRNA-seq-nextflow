@@ -18,7 +18,8 @@ process CHECK_SATURATION {
     """
     cellFile=\$(mktemp -p ./)
     zcat ${starsolo_filteredDir}/barcodes.tsv.gz > \$cellFile
-    get_sequencing_saturation.sh ${whitelist} \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} ${meta.id}.saturation_out.json
+    get_sequencing_saturation.sh ${whitelist} \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} ${meta.id}.saturation_data.json ${meta.id}.UMI_hist.tsv ${meta.id}.gene_hist.tsv ${meta.id}.totalGeneCount.tsv
     rm \$cellFile
+    combine_saturation_data.R ${meta.id}.saturation_data.json ${meta.id}.UMI_hist.tsv ${meta.id}.gene_hist.tsv ${meta.id}.totalGeneCount.tsv ${meta.id}.saturation_out.json
     """
 }
