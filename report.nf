@@ -17,7 +17,8 @@ process REPORT{
 
     output:
     tuple val(meta), path("*report.html") , emit: report
-    tuple val(meta), path("*metrics.json"), emit: metrics
+    tuple val(meta), path("*metrics.json"), emit: metrics_json
+    tuple val(meta), path("*metrics.tsv"),  emit: metrics_tsv
     tuple val(meta), path("*raw.h5seurat"), emit: h5seurat
     tuple val(meta), path("*_DEG.tsv")    , optional: true, emit: DEGlist
 
