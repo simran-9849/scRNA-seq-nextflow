@@ -269,7 +269,7 @@ workflow vdj_process {
     ch_star_multiqc               = Channel.empty()
 
     // force using parameters for 5'-RNAseq
-    params.soloStrand = "Reverse"
+    //params.soloStrand = "Reverse"
 
     STARSOLO_VDJ(
         ch_cDNA_read,
@@ -359,6 +359,9 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ starsolo_summary_collapsed }
 
+    starsolo_summary_collapsed.view()
+
+
     starsolo_umi
     .map {
         meta, file ->
@@ -385,6 +388,8 @@ workflow vdj_report {
     }
     .groupTuple(by:[0])
     .set{ qualimap_outDir_collapsed }
+
+    qualimap_outDir_collapsed.view()
 
     saturation_json
     .map {

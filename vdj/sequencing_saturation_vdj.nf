@@ -12,10 +12,26 @@ process CHECK_SATURATION_VDJ {
 
     script:
     def multiMapper = params.soloMultiMappers == "Unique" ? "unique" : "multiple"
+    if(meta.feature_types =~ /GEX/){
     """
     cellFile=\$(mktemp -p ./)
     zcat ${starsolo_filteredDir}/barcodes.tsv.gz > \$cellFile
-    get_sequencing_saturation.sh ${whitelist} \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} ${meta.id}_${meta.feature_types}.saturation_out.json
+    get_sequencing_saturation.sh ${whitelist} \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} \\
+                                 ${meta.id}_${meta.feature_types}.saturation_data.json \\
+                                 ${meta.id}_${meta.feature_types}.UMI_hist.tsv \\
+                                 ${meta.id}_${meta.feature_types}.gene_hist.tsv \\
+                                 ${meta.id}_${meta.feature_types}.totalGeneCount.tsv
     rm \$cellFile
+    combine_saturation_data.R ${meta.id}_${meta.feature_types} \\
+                              ${meta.id}_${meta.feature_types}.saturation_data.json \\
+                              ${meta.id}_${meta.feature_types}.UMI_hist.tsv \\
+                              ${meta.id}_${meta.feature_types}.gene_hist.tsv \\
+                              ${meta.id}_${meta.feature_types}.totalGeneCount.tsv \\
+                              ${meta.id}_${meta.feature_types}.saturation_out.json
     """
+    }else{
+    """
+    touch ${meta.id}_${meta.feature_types}.saturation_out.json
+    """
+    }
 }

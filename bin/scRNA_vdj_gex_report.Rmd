@@ -425,11 +425,11 @@ Row
 ### Sequencing Saturation
 
 ```{r eval = include_gex}
-saturation_data <- fromJSON(params$saturation_json) %>%
-    mutate(reads=as.numeric(reads),
-           saturation=as.numeric(saturation),
-           meanReadPerCell=as.numeric(meanReadPerCell),
-           medianGenePerCell=as.numeric(medianGenePerCell))
+saturation_data <- fromJSON(params$saturation_json)
+saturation_data <- saturation_data[["saturation_data"]] %>%
+    as_tibble() %>%
+    mutate(across(.col = everything(), .fns = as.numeric))
+
 plot_ly(saturation_data, x = ~reads, y= ~saturation,
         type = 'scatter', mode = 'lines',
         hovertemplate = 'Read depth: %{x}<br>Saturation: %{y}<extra></extra>') %>%

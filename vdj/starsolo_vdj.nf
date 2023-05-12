@@ -72,6 +72,7 @@ process STARSOLO_VDJ {
     --soloCellFilter $params.soloCellFilter \\
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
+    --outSAMunmapped Within KeepPairs \\
     --outSAMtype BAM SortedByCoordinate
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
