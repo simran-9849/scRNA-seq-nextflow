@@ -389,9 +389,7 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ qualimap_outDir_collapsed }
 
-    qualimap_outDir_collapsed.view()
-
-    saturation_json
+     saturation_json
     .map {
         meta, file ->
             //if( meta.feature_types == "GEX" )

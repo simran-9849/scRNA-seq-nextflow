@@ -566,10 +566,13 @@ vdj_t_tbl %>%
 
 ```{r eval = include_tcr}
 cellNum <- as.numeric(vdj_t_metrics$cells)
-vdj_t_knee <- read_tsv(params$VDJ_T_kneeData, col_names = c("CB", "UMI"))
-vdj_t_knee <- vdj_t_knee %>% 
+vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeData)
+vdj_t_knee <- vdj_t_kneeData %>% 
+    mutate(UMI = chain1_UMI+chain2_UMI) %>%
+    select(CB, UMI) %>%
+    arrange(desc(UMI)) %>%
     mutate(
-        cell = c(1:nrow(vdj_t_knee)),
+        cell = c(1:nrow(vdj_t_kneeData)),
         group = case_when(
             cell <= cellNum ~ "cell",
             TRUE ~ "background"
@@ -613,38 +616,7 @@ vdj_t_tbl %>%
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### Mapping Stats
-
-```{r eval = include_tcr}
-##Reads Mapped to Genome: Unique+Multiple
-##Reads Mapped to Genome: Unique
-##Reads mapped to any V(D)J gene
-##Reads mapped to IGH
-##Reads mapped to IGK
-##Reads mapped to IGL
-vdj_t_tbl <- tribble(
-  ~term, ~value,
-  "Reads Mapped to Genome: Unique+Multiple", vdj_t_metrics$totalMappedReads,
-  "Reads Mapped to Genome: Unique", vdj_t_metrics$uniquelyMappedReads##,
-  ##"Reads Mapped to Any V(D)J Gene", "2",
-  ##"Reads Mapped to TRB", 2,
-  ##"Reads Mapped to TRD", 2,
-  ##"Reads Mapped to TRA", 2,
-  ##"Reads Mapped to TRG", 2
-) %>%
-  mutate(value = as.numeric(value)) %>%
-  mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
-                         value > 1 ~ label_comma()(round(value))))
-names(vdj_t_tbl) <- c("", "")
-vdj_t_tbl %>% 
-    kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
-```
-
-Row
-----------
-
-### V(D)J Annotation & T Cell Expression
+### V(D)J Annotation
 
 ```{r eval = include_tcr}
 ##Cells with productive V-J spanning pair
@@ -673,6 +645,49 @@ names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+Row
+----------
+
+### GEX Association
+
+```{r eval = include_tcr}
+## Only plot cluster when there are more than 150 filtered cells
+if(filtered_cells >= 150){
+    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+    ## extract data from seuratData
+    tcr_cells <- vdj_t_knee %>%
+        filter(group == "cell") %>%
+        pull(CB)
+    tcr_data <- vdj_t_kneeData %>%
+        filter(CB %in% tcr_cells)
+    clusterData2 <- clusterData %>% left_join(tcr_data, by = c("bc" = "CB")) %>%
+        dplyr::select(bc, UMAP_1, UMAP_2, chain1_cdr3, chain2_cdr3) %>%
+        dplyr::mutate(
+            text = paste0(chain1_cdr3, "+", chain2_cdr3),
+            type = case_when(
+                !is.na(chain1_cdr3) & !is.na(chain2_cdr3) ~ "Detected",
+                TRUE ~ "Not captured"
+            )
+        )
+
+    plot_ly(clusterData2, x = ~UMAP_1, y= ~UMAP_2, color = ~type, 
+            text = ~text,
+            type = 'scatter', mode = 'markers',
+            marker = list(opacity = 0.5),
+            colors = c("#9370DB", "grey"),
+            hovertemplate = 'CDR3: %{text}<extra><b>Type: %{fullData.name}</b></extra>') %>%
+        config_plotly_fig() %>%
+        toWebGL()
+    
+    ##clusterPlot %>% ggplotly() %>%
+    ##    config(displaylogo = FALSE,
+    ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+    ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+}else{
+    cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
+}
 ```
 
 ### Top 10 Clonetypes
@@ -780,10 +795,13 @@ vdj_b_tbl %>%
 
 ```{r eval = include_bcr}
 cellNum <- as.numeric(vdj_b_metrics$cells)
-vdj_b_knee <- read_tsv(params$VDJ_B_kneeData, col_names = c("CB", "UMI"))
-vdj_b_knee <- vdj_b_knee %>% 
+vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeData)
+vdj_b_knee <- vdj_b_kneeData %>% 
+    mutate(UMI = chain1_UMI+chain2_UMI) %>%
+    select(CB, UMI) %>%
+    arrange(desc(UMI)) %>%
     mutate(
-        cell = c(1:nrow(vdj_b_knee)),
+        cell = c(1:nrow(vdj_b_kneeData)),
         group = case_when(
             cell <= cellNum ~ "cell",
             TRUE ~ "background"
@@ -828,37 +846,7 @@ vdj_b_tbl %>%
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### Mapping Stats
-
-```{r eval = include_bcr}
-##Reads Mapped to Genome: Unique+Multiple
-##Reads Mapped to Genome: Unique
-##Reads mapped to any V(D)J gene
-##Reads mapped to IGH
-##Reads mapped to IGK
-##Reads mapped to IGL
-vdj_b_tbl <- tribble(
-  ~term, ~value,
-  "Reads Mapped to Genome: Unique+Multiple", vdj_b_metrics$totalMappedReads,
-  "Reads Mapped to Genome: Unique", vdj_b_metrics$uniquelyMappedReads##,
-  ##"Reads Mapped to Any V(D)J Gene", 0,
-  ##"Reads Mapped to IGH", 0,
-  ##"Reads Mapped to IGK", 0,
-  ##"Reads Mapped to IGL", 0
-) %>%
-  mutate(value = as.numeric(value)) %>%
-  mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
-                         value > 1 ~ label_comma()(round(value))))
-names(vdj_b_tbl) <- c("", "")
-vdj_b_tbl %>% 
-    kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
-```
-
-Row
-----------
-
-### V(D)J Annotation & T Cell Expression
+### V(D)J Annotation
 
 ```{r eval = include_bcr}
 ##Cells with productive V-J spanning pair
@@ -886,6 +874,49 @@ names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+Row
+----------
+
+### GEX Association
+
+```{r eval = include_bcr}
+## Only plot cluster when there are more than 150 filtered cells
+if(filtered_cells >= 150){
+    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+    ## extract data from seuratData
+    bcr_cells <- vdj_b_knee %>%
+        filter(group == "cell") %>%
+        pull(CB)
+    bcr_data <- vdj_b_kneeData %>%
+        filter(CB %in% bcr_cells)
+    clusterData2 <- clusterData %>% left_join(bcr_data, by = c("bc" = "CB")) %>%
+        dplyr::select(bc, UMAP_1, UMAP_2, chain1_cdr3, chain2_cdr3) %>%
+        dplyr::mutate(
+            text = paste0(chain1_cdr3, "+", chain2_cdr3),
+            type = case_when(
+                !is.na(chain1_cdr3) & !is.na(chain2_cdr3) ~ "Detected",
+                TRUE ~ "Not captured"
+            )
+        )
+
+    plot_ly(clusterData2, x = ~UMAP_1, y= ~UMAP_2, color = ~type, 
+            text = ~text,
+            type = 'scatter', mode = 'markers',
+            marker = list(opacity = 0.5),
+            colors = c("#9370DB", "grey"),
+            hovertemplate = 'CDR3: %{text}<extra><b>Type: %{fullData.name}</b></extra>') %>%
+        config_plotly_fig() %>%
+        toWebGL()
+    
+    ##clusterPlot %>% ggplotly() %>%
+    ##    config(displaylogo = FALSE,
+    ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
+    ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+}else{
+    cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
+}
 ```
 
 ### Top 10 Clonetypes

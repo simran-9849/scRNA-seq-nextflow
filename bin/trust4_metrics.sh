@@ -52,8 +52,11 @@ awk -v cellName=$cellName '{split($3, chain1, ","); split($4, chain2, ","); chai
 cellNum=$(wc -l $cellBC | awk '{print $1}')
 
 ## calculate UMI in cells and background barcodes
-awk 'FNR>1{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1!="-"){umi=chain1_umi+chain2_umi; print $1"\t"umi}}' TRUST_${sampleID}_barcode_report.tsv |
-    sort -k 2,2rn | awk 'BEGIN{"CB\tUMI"}{print}' > $kneeInput
+## include more information in the kneeData
+## columns:
+## 1.barcode 2.chain1_umi 3.chain1_genotype 4.chain1_cdr3 5.chain2_umi 6.chain2_genotype 7.chain2_cdr3
+awk 'NR>1{if($3!="*"){split($3, chain1, ",");  chain1_umi=chain1[7]; chain1_genotype=chain[1]"+"chain1[2]"+"chain1[3]"+"chain1[4]; chain1_cdr3=chain1[6];}else{chain1_umi=0; chain1_genotype="*"; chain1_cdr3="*";} if($4!="*"){split($4, chain2, ","); chain2_umi=chain2[7]; chain2_genotype=chain2[1]"+"chain2[2]"+"chain2[3]"+"chain2[4]; chain2_cdr3=chain2[6];}else{chain2_umi=0; chain2_genotype="*"; chain2_cdr3="*"};print $1"\t"chain1_umi"\t"chain1_genotype"\t"chain1_cdr3"\t"chain2_umi"\t"chain2_genotype"\t"chain2_cdr3}' TRUST_${sampleID}_barcode_report.tsv |
+    awk 'BEGIN{print "CB\tchain1_UMI\tchain1_genotype\tchain1_cdr3\tchain2_UMI\tchain2_genotype\tchain2_cdr3"}{print}' > $kneeInput
 
 ## Extract read and umi in cells
 readCBList=$(mktemp -p ./)
@@ -71,8 +74,8 @@ totalReadsInCell=$(wc -l $readCellList| awk '{print $1}')
 fractionReadsInCells=$(awk -v cell=$totalReadsInCell -v total=$totalReadsInCB 'BEGIN{print cell/total}')
 
 ## calculate mean/median UMIs per cell, UMI of chain1 (heavy) and chain2 (light)
-meanUMIsPerCell=$(head -n $cellNum $kneeInput | awk 'BEGIN{t=0}{t+=$2}END{print t/NR}')
-medianUMIsPerCell=$(head -n $cellNum $kneeInput | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
+meanUMIsPerCell=$(awk 'NR>1{print $1"\t"$2+$5}' $kneeInput | sort -k 2,2rn | head -n $cellNum | awk 'BEGIN{t=0}{t+=$2}END{print t/NR}')
+medianUMIsPerCell=$(awk 'NR>1{print $1"\t"$2+$5}' $kneeInput | sort -k 2,2rn | head -n $cellNum | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 medianUMIsChain1=$(awk -v cellName=$cellName '{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1!="-" && $2==cellName && chain1_umi+chain2_umi>=3){print $1"\t"chain1_umi}}' TRUST_${sampleID}_barcode_report.tsv | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 medianUMIsChain2=$(awk -v cellName=$cellName '{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1!="-" && $2==cellName && chain1_umi+chain2_umi>=3){print $1"\t"chain2_umi}}' TRUST_${sampleID}_barcode_report.tsv | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 

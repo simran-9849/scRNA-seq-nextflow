@@ -22,6 +22,7 @@ process TRUST4_VDJ {
     --barcode CB \\
     --barcodeWhitelist $whitelist \\
     --UMI UB \\
+    --outputReadAssignment \\
     -t ${task.cpus}
     
     trust4_metrics.sh ${meta.id}_${meta.feature_types} \\
