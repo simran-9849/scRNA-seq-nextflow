@@ -182,7 +182,7 @@ workflow mkref {
 // sub-workflow for vdj analysis
 
 include { CAT_TRIM_FASTQ_VDJ } from "./vdj/cat_trim_fastq_vdj"
-include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ } from "./vdj/starsolo_vdj"
+include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ; STARSOLO_COMPLEX_VDJ } from "./vdj/starsolo_vdj"
 include { QUALIMAP_VDJ } from "./vdj/qualimap_vdj"
 include { CHECK_SATURATION_VDJ } from "./vdj/sequencing_saturation_vdj.nf"
 include { TRUST4_VDJ } from "./vdj/trust4_vdj"
@@ -263,70 +263,102 @@ workflow vdj_process {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
-    
+    ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
+
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_star_multiqc               = Channel.empty()
-
+    ch_starsolo_summary           = Channel.empty()
+    ch_starsolo_umi               = Channel.empty()
+    ch_starsolo_filteredDir       = Channel.empty()
+    ch_qualimap_outDir            = Channel.empty()
+    ch_saturation_json            = Channel.empty()
     // force using parameters for 5'-RNAseq
     //params.soloStrand = "Reverse"
 
-    STARSOLO_VDJ(
-        ch_cDNA_read,
-        ch_bc_read,
-        ch_genomeDir,
-        ch_genomeGTF,
-        ch_whitelist,
-    )
-    ch_genome_bam       = STARSOLO_VDJ.out.bam
-    ch_genome_bam_index = STARSOLO_VDJ.out.bai
+    if(params.soloType == "CB_UMI_Complex"){
+        STARSOLO_COMPLEX_VDJ(
+            ch_cDNA_read,
+            ch_bc_read,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_barcodelist.toList(),
+        )
+        ch_genome_bam           = STARSOLO_COMPLEX_VDJ.out.bam
+        ch_genome_bam_index     = STARSOLO_COMPLEX_VDJ.out.bai
+        ch_starsolo_filteredDir = STARSOLO_COMPLEX_VDJ.out.filteredDir
+        ch_starsolo_summary     = STARSOLO_COMPLEX_VDJ.out.summary_unique
+        ch_starsolo_umi         = STARSOLO_COMPLEX_VDJ.out.UMI_file_unique
 
-    if(params.soloMultiMappers != "Unique"){
-        STARSOLO_MULTIPLE_VDJ(
-            STARSOLO_VDJ.out.rawDir
-        )
-        CHECK_SATURATION_VDJ(
-            ch_genome_bam,
-            STARSOLO_MULTIPLE_VDJ.out.filteredDir,
-            ch_whitelist
-        )
-        STARSOLO_MULT_SUMMARY_VDJ(
-            STARSOLO_VDJ.out.cellReads_stats,
-            STARSOLO_MULTIPLE_VDJ.out.filteredDir,
-            STARSOLO_VDJ.out.summary_unique,
-            CHECK_SATURATION_VDJ.out.outJSON
-        )
-        STARSOLO_MULT_UMI_VDJ(
-            STARSOLO_VDJ.out.cellReads_stats   
-        )
-        //GET_VERSIONS(
-        //    CHECK_SATURATION_VDJ.out.outJSON
-        //)
     }else{
-        CHECK_SATURATION_VDJ(
-            STARSOLO_VDJ.out.bam,
-            STARSOLO_VDJ.out.filteredDir,
-            ch_whitelist
+        STARSOLO_VDJ(
+            ch_cDNA_read,
+            ch_bc_read,
+            ch_genomeDir,
+            ch_genomeGTF,
+            ch_whitelist,
         )
-        //GET_VERSIONS(
-        //    CHECK_SATURATION_VDJ.out.outJSON
-        //)
-    }
+        ch_genome_bam           = STARSOLO_VDJ.out.bam
+        ch_genome_bam_index     = STARSOLO_VDJ.out.bai
+        ch_starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
+        ch_starsolo_summary     = STARSOLO_VDJ.out.summary_unique
+        ch_starsolo_umi         = STARSOLO_VDJ.out.UMI_file_unique
 
-    ch_qualimap_multiqc           = Channel.empty()
+    }
+    
+    //if(params.soloMultiMappers != "Unique"){
+    //    STARSOLO_MULTIPLE_VDJ(
+    //        STARSOLO_VDJ.out.rawDir
+    //    )
+    //    CHECK_SATURATION_VDJ(
+    //        ch_genome_bam,
+    //        STARSOLO_MULTIPLE_VDJ.out.filteredDir,
+    //        ch_whitelist
+    //    )
+    //    STARSOLO_MULT_SUMMARY_VDJ(
+    //        STARSOLO_VDJ.out.cellReads_stats,
+    //        STARSOLO_MULTIPLE_VDJ.out.filteredDir,
+    //        STARSOLO_VDJ.out.summary_unique,
+    //        CHECK_SATURATION_VDJ.out.outJSON
+    //    )
+    //    STARSOLO_MULT_UMI_VDJ(
+    //        STARSOLO_VDJ.out.cellReads_stats   
+    //    )
+    //    //GET_VERSIONS(
+    //    //    CHECK_SATURATION_VDJ.out.outJSON
+    //    //)
+    //}else{
+    //    CHECK_SATURATION_VDJ(
+    //        STARSOLO_VDJ.out.bam,
+    //        STARSOLO_VDJ.out.filteredDir,
+    //        ch_whitelist
+    //    )
+    //    //GET_VERSIONS(
+    //    //    CHECK_SATURATION_VDJ.out.outJSON
+    //    //)
+    //}
+
+    CHECK_SATURATION_VDJ(
+        ch_genome_bam,
+        ch_starsolo_filteredDir,
+        ch_whitelist
+    )
+    ch_saturation_json = CHECK_SATURATION_VDJ.out.outJSON
+
     QUALIMAP_VDJ(
-        STARSOLO_VDJ.out.bam,
+        ch_genome_bam,
         ch_genomeGTF
     )
-    ch_qualimap_multiqc = QUALIMAP_VDJ.out.results
-    
+    ch_qualimap_outDir = QUALIMAP_VDJ.out.results
+
     emit:
-    starsolo_summary = STARSOLO_VDJ.out.summary_unique
-    starsolo_bam = STARSOLO_VDJ.out.bam
-    starsolo_umi = STARSOLO_VDJ.out.UMI_file_unique
-    starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
-    qualimap_outDir = QUALIMAP_VDJ.out.results
-    saturation_json = CHECK_SATURATION_VDJ.out.outJSON
+        starsolo_summary     = ch_starsolo_summary
+        starsolo_bam         = ch_genome_bam
+        starsolo_umi         = ch_starsolo_umi
+        starsolo_filteredDir = ch_starsolo_filteredDir
+        qualimap_outDir      = ch_qualimap_outDir
+        saturation_json      = ch_saturation_json
+
 }
 
 workflow vdj_report {
@@ -358,8 +390,6 @@ workflow vdj_report {
     }
     .groupTuple(by:[0])
     .set{ starsolo_summary_collapsed }
-
-    starsolo_summary_collapsed.view()
 
 
     starsolo_umi

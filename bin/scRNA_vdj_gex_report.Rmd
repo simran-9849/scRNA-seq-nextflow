@@ -43,6 +43,7 @@ library(kableExtra)
 library(Seurat)
 library(future)
 library(SeuratDisk)
+##library(VennDiagram)
 
 set.seed(1234)
 plan(multisession, workers = as.numeric(params$nCPUs))
@@ -652,7 +653,7 @@ Row
 
 ### GEX Association
 
-```{r eval = include_tcr}
+```{r eval = (include_tcr & include_gex)}
 ## Only plot cluster when there are more than 150 filtered cells
 if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
@@ -881,7 +882,7 @@ Row
 
 ### GEX Association
 
-```{r eval = include_bcr}
+```{r eval = (include_bcr & include_gex)}
 ## Only plot cluster when there are more than 150 filtered cells
 if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)

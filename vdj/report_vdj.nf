@@ -25,7 +25,15 @@ process REPORT_VDJ {
     script:
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
     def associate_feature_type = { feature_types, data_list ->
-       def map = [feature_types, data_list].transpose().collectEntries()
+        def map = [:]
+        if(feature_types.size() > 1){
+            map = [feature_types, data_list].transpose().collectEntries()
+        }else if(feature_types.size() == 1){
+            map = [feature_types, [data_list]].transpose().collectEntries()
+        }//else{
+            // return empty, them program will stop and throw the warnning
+            //def map = [:]
+        //}
         return map
     }
 
@@ -39,19 +47,22 @@ process REPORT_VDJ {
     def trust4_cloneType_map = associate_feature_type(trust4_cloneType_feature_types, trust4_cloneType)
 
     // Different input files names when including multi-gene reasds
-    def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
-    def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
-    def GEX_summaryFile = starsolo_summary_map["GEX"]
-    def GEX_qualimapDir = qualimap_outdir_map["GEX"]
-    def GEX_UMI_file = starsolo_UMI_file_map["GEX"]
-    def GEX_matrixDir = starsolo_filteredDir_map["GEX"]
-    def GEX_saturation = saturation_outJSON_map["GEX"]
-    def VDJ_B_trust4_metrics = trust4_metrics_map["VDJ-B"]
-    def VDJ_T_trust4_metrics = trust4_metrics_map["VDJ-T"]
-    def VDJ_B_kneeData = trust4_kneeData_map["VDJ-B"]
-    def VDJ_T_kneeData = trust4_kneeData_map["VDJ-T"]
-    def VDJ_B_cloneType = trust4_cloneType_map["VDJ-B"]
-    def VDJ_T_cloneType = trust4_cloneType_map["VDJ-T"]
+    //def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
+    //def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
+    def GEX_summaryFile = starsolo_summary_map["GEX"] ?  starsolo_summary_map["GEX"] : ""
+    //def GEX_qualimapDir = qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] : ""
+    def qualimapInput =  qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] + "/rnaseq_qc_results.txt" : ""
+    def qualimapGeneCoverage = qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] + "/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt" : ""
+    def GEX_UMI_file = starsolo_UMI_file_map["GEX"] ? starsolo_UMI_file_map["GEX"] : ""
+    def GEX_matrixDir = starsolo_filteredDir_map["GEX"] ? starsolo_filteredDir_map["GEX"] : ""
+    def GEX_saturation = saturation_outJSON_map["GEX"] ? saturation_outJSON_map["GEX"] : ""
+    def VDJ_B_trust4_metrics = trust4_metrics_map["VDJ-B"] ? trust4_metrics_map["VDJ-B"] : ""
+    def VDJ_T_trust4_metrics = trust4_metrics_map["VDJ-T"] ? trust4_metrics_map["VDJ-T"] : ""
+    def VDJ_B_kneeData = trust4_kneeData_map["VDJ-B"] ? trust4_kneeData_map["VDJ-B"] : ""
+    def VDJ_T_kneeData = trust4_kneeData_map["VDJ-T"] ? trust4_kneeData_map["VDJ-T"] : ""
+    def VDJ_B_cloneType = trust4_cloneType_map["VDJ-B"] ? trust4_cloneType_map["VDJ-B"] : ""
+    def VDJ_T_cloneType = trust4_cloneType_map["VDJ-T"] ? trust4_cloneType_map["VDJ-T"] : "" 
+
 
     """
     #! /usr/bin/env Rscript
@@ -61,8 +72,8 @@ process REPORT_VDJ {
         params = list(
             sampleName = "${meta.id}",
             starsolo_out = "${GEX_summaryFile}",
-            qualimap_out = "${GEX_qualimapDir}/rnaseq_qc_results.txt",
-            qualimap_gene_coverage = "${GEX_qualimapDir}/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt",
+            qualimap_out = "${qualimapInput}",
+            qualimap_gene_coverage = "${qualimapGeneCoverage}",
             starsolo_bc = "${GEX_UMI_file}",
             starsolo_matrixDir="${GEX_matrixDir}",
             nCPUs = "$task.cpus",

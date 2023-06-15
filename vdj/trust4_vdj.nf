@@ -1,6 +1,9 @@
 process TRUST4_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
+    publishDir "${params.outdir}/trust4/${meta.id}_${meta.feature_types}",
+        mode: "${params.publish_dir_mode}",
+        enabled: params.outdir as boolean
 
     input:
     tuple val(meta), path(starsoloBAM)
