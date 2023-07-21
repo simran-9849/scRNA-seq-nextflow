@@ -263,7 +263,6 @@ workflow vdj_process {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
-    ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
@@ -277,6 +276,8 @@ workflow vdj_process {
     //params.soloStrand = "Reverse"
 
     if(params.soloType == "CB_UMI_Complex"){
+        // barcodelist will only be required for complex mode
+        ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
         STARSOLO_COMPLEX_VDJ(
             ch_cDNA_read,
             ch_bc_read,
