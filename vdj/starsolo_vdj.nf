@@ -168,7 +168,7 @@ process STARSOLO_MULT_UMI_VDJ {
 process STARSOLO_COMPLEX_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
-    publishDir "${params.outdir}/starsolo/${meta.id}_${meta.feature_types}",
+    publishDir "${params.outdir}/starsolo/${meta.id}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean,
         saveAs: { filename ->
@@ -176,6 +176,8 @@ process STARSOLO_COMPLEX_VDJ {
             return null
         }else if(filename=~/Solo.out/){
             return filename.split("/")[-1]
+        }else if(filename=~/_VDJ-[TB]/){
+            return null
         }else{
             return filename
         }
