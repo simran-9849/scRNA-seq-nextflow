@@ -1,6 +1,9 @@
 process CHECK_SATURATION_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
+    publishDir "${params.outdir}/saturation/",
+        mode: "${params.publish_dir_mode}",
+        enabled: params.publishSaturation as boolean
 
     input:
     tuple val(meta), path(starsoloBAM)
