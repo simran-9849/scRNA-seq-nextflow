@@ -1,9 +1,18 @@
 process TRUST4_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
-    publishDir "${params.outdir}/trust4/${meta.id}_${meta.feature_types}",
+    publishDir "${params.outdir}/trust4/${meta.id}",
         mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
+        enabled: params.outdir as boolean,
+        saveAs: { filename ->
+        if(filename=~/_GEX/){
+            return null
+        }else if(filename=~/Solo.out/){
+            return filename.split("/")[-1]
+        }else{
+            return filename
+        }
+    }
 
     input:
     tuple val(meta), path(starsoloBAM)
@@ -16,6 +25,8 @@ process TRUST4_VDJ {
     tuple val(meta), path("${meta.id}_${meta.feature_types}.vdj_metrics.json"), emit: metricsJSON
     tuple val(meta), path("${meta.id}_${meta.feature_types}.knee_input.tsv"), emit: kneeData
     tuple val(meta), path("${meta.id}_${meta.feature_types}.cloneType_out.tsv"), emit: cloneType
+    tuple val(meta), path("TRUST_${meta.id}_${meta.feature_types}.barcode_report.tsv"), emit: trust4Out
+    tuple val(meta), path("TRUST_${meta.id}_${meta.feature_types}.barcode_airr.tsv"), emit: trust4airr
 
     script:
     if(meta.feature_types =~ /VDJ-[TB]/){
