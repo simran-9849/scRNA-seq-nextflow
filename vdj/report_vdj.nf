@@ -20,7 +20,8 @@ process REPORT_VDJ {
     tuple val(meta), path("*report.html") , emit: report
     //tuple val(meta), path("*metrics.json"), emit: metrics
     //tuple val(meta), path("*raw.h5seurat"), emit: h5seurat
-    //tuple val(meta), path("*_DEG.tsv")    , optional: true, emit: DEGlist
+    tuple val(meta), path("*_DEG.tsv")    , optional: true, emit: DEGlist
+    tuple val(meta), path("${meta.id}_GEX.Summary.unique.csv"), optional: true, emit: GEX_Summary
 
     script:
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
