@@ -121,7 +121,7 @@ SaveH5Seurat(
 )
 
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
-qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
+qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3, group.by="run")
 
 ## Filter by gene counts and mitochondrial percentage
 ## Check the number of cells left first, or subset will throw an error
@@ -169,6 +169,8 @@ if(filtered_cells >= 150){
 .chart-title {
   font-size: 1.2rem;
   font-weight: 700;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 ```
 
@@ -271,7 +273,7 @@ config_plotly_fig(fig) %>% toWebGL()
 ##          legend.position = "none")
 ```
 
-Row
+Row {data-height=400}
 ----------
 
 ### Sequencing Stats
@@ -494,10 +496,10 @@ VDJ-T {data-orientation=rows}
 
 ```{r include=FALSE, eval = include_tcr}
 vdj_t_cloneType <- read_tsv(params$VDJ_T_cloneType) %>%
-    arrange(desc(Frequency))
+    arrange(desc(CellCount))
 vdj_t_cloneType <- vdj_t_cloneType %>%
     mutate(id = 1:nrow(vdj_t_cloneType),
-           Proportion = scales::label_percent(0.01)(Proportion))
+           Frequency = scales::label_percent(0.01)(Frequency))
 ```
 
 Row
@@ -543,15 +545,19 @@ Row
 ##Mean Gene per Cell
 ##Median Gene per Cell
 
+fractionAssembled <- as.numeric(vdj_t_metrics$totalReadsInCell)/(as.numeric(vdj_t_metrics$totalRawReads)*as.numeric(vdj_t_metrics$validBCreads))
+fractionAssembled <- as.character(fractionAssembled)
+
 vdj_t_tbl <- tribble(
   ~term, ~value,
   "Estimated Number of Cells", vdj_t_metrics$cells,
-  "Reads in Cells Mapped to Gene", vdj_t_metrics$totalReadsInCell,
-  "Fraction of Reads in Cells", vdj_t_metrics$fractionReadsInCells,
+  "Reads in Cells Mapped to VDJ Gene", vdj_t_metrics$totalReadsInCell,
+  "Fraction of Reads Used in Assembly", fractionAssembled,
   "Mean Reads per Cell", vdj_t_metrics$meanReadsPerCell,
   "Median Reads per Cell", vdj_t_metrics$medianReadsPerCell,
   "Mean UMIs per Cell", vdj_t_metrics$meanUMIsPerCell,
   "Median UMIs per Cell", vdj_t_metrics$medianUMIsPerCell,
+  "Pairing Rate", vdj_t_metrics$pairingRate,
   "Total Clone Types Detected", vdj_t_metrics$totalCloneTypes
 ) %>%
   mutate(value = as.numeric(value)) %>%
@@ -588,7 +594,7 @@ fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showle
 config_plotly_fig(fig) %>% toWebGL()
 ```
 
-Row
+Row {data-height=400}
 ----------
 
 ### Sequencing Stats
@@ -694,7 +700,7 @@ if(filtered_cells >= 150){
 ### Top 10 Clonetypes
 
 ```{r eval = include_tcr}
-fig <- plot_ly(data = vdj_t_cloneType %>% filter(id<=10), x = ~id, y = ~Frequency, type = "bar")
+fig <- plot_ly(data = vdj_t_cloneType %>% filter(id<=10), x = ~id, y = ~CellCount, type = "bar")
 fig <- layout(fig, showlegend = FALSE)
 config_plotly_fig(fig)
 ```
@@ -723,10 +729,10 @@ VDJ-B {data-orientation=rows}
 
 ```{r include=FALSE, eval = include_bcr}
 vdj_b_cloneType <- read_tsv(params$VDJ_B_cloneType) %>%
-    arrange(desc(Frequency))
+    arrange(desc(CellCount))
 vdj_b_cloneType <- vdj_b_cloneType %>%
     mutate(id = 1:nrow(vdj_b_cloneType),
-           Proportion = scales::label_percent(0.01)(Proportion))
+           Frequency = scales::label_percent(0.01)(Frequency))
 ```
 
 Row
@@ -772,15 +778,19 @@ Row
 ##Mean Gene per Cell
 ##Median Gene per Cell
 
+fractionAssembled <- as.numeric(vdj_b_metrics$totalReadsInCell)/(as.numeric(vdj_b_metrics$totalRawReads)*as.numeric(vdj_b_metrics$validBCreads))
+fractionAssembled <- as.character(fractionAssembled)
+
 vdj_b_tbl <- tribble(
   ~term, ~value,
   "Estimated Number of Cells", vdj_b_metrics$cells,
-  "Reads in Cells Mapped to Gene", vdj_b_metrics$totalReadsInCell,
-  "Fraction of Reads in Cells", vdj_b_metrics$fractionReadsInCells,
+  "Reads in Cells Mapped to VDJ Gene", vdj_b_metrics$totalReadsInCell,
+  "Fraction of Reads Used in Assembly", fractionAssembled,
   "Mean Reads per Cell", vdj_b_metrics$meanReadsPerCell,
   "Median Reads per Cell", vdj_b_metrics$medianReadsPerCell,
   "Mean UMIs per Cell", vdj_b_metrics$meanUMIsPerCell,
   "Median UMIs per Cell", vdj_b_metrics$medianUMIsPerCell,
+  "Pairing Rate", vdj_b_metrics$pairingRate,
   "Total Clone Types Detected", vdj_b_metrics$totalCloneTypes
 ) %>%
   mutate(value = as.numeric(value)) %>%
@@ -817,7 +827,7 @@ fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showle
 config_plotly_fig(fig) %>% toWebGL()
 ```
 
-Row
+Row {data-height=400}
 ----------
 
 ### Sequencing Stats
@@ -923,7 +933,7 @@ if(filtered_cells >= 150){
 ### Top 10 Clonetypes
 
 ```{r eval = include_bcr}
-fig <- plot_ly(data = vdj_b_cloneType %>% filter(id<=10), x = ~id, y = ~Frequency, type = "bar")
+fig <- plot_ly(data = vdj_b_cloneType %>% filter(id<=10), x = ~id, y = ~CellCount, type = "bar")
 fig <- layout(fig, showlegend = FALSE)
 config_plotly_fig(fig)
 ```

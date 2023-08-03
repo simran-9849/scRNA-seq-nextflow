@@ -185,7 +185,7 @@ include { CAT_TRIM_FASTQ_VDJ } from "./vdj/cat_trim_fastq_vdj"
 include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ; STARSOLO_COMPLEX_VDJ } from "./vdj/starsolo_vdj"
 include { QUALIMAP_VDJ } from "./vdj/qualimap_vdj"
 include { CHECK_SATURATION_VDJ } from "./vdj/sequencing_saturation_vdj.nf"
-include { TRUST4_VDJ } from "./vdj/trust4_vdj"
+include { TRUST4_VDJ; VDJ_METRICS } from "./vdj/trust4_vdj"
 include { GET_VERSIONS_VDJ } from "./vdj/present_version_vdj"
 include { REPORT_VDJ } from "./vdj/report_vdj"
 
@@ -375,6 +375,8 @@ workflow vdj_report {
     ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
     ch_vdj_imgt_fasta = file(params.trust4_vdj_imgt_fasta)
     ch_whitelist = file(params.whitelist)
+    
+    //starsolo_bam.view()
     TRUST4_VDJ(
         starsolo_bam,
         starsolo_summary,
@@ -382,6 +384,34 @@ workflow vdj_report {
         ch_vdj_imgt_fasta,
         ch_whitelist
     )
+
+    ch_trust4_report = TRUST4_VDJ.out.trust4_report
+    ch_trust4_airr   = TRUST4_VDJ.out.trust4_airr
+    ch_toassemble_bc = TRUST4_VDJ.out.toassemble_bc
+
+    ch_trust4_report
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ vdj_report }
+
+    ch_trust4_airr
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ vdj_airr }
+
+    ch_toassemble_bc
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ vdj_toassemble_bc }
 
     starsolo_summary
     .map {
@@ -411,6 +441,14 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ starsolo_filteredDir_collapsed }
 
+    VDJ_METRICS(
+        vdj_report,
+        vdj_airr,
+        vdj_toassemble_bc,
+        starsolo_summary_collapsed,
+        starsolo_filteredDir_collapsed
+    )
+    
     qualimap_outDir
     .map {
         meta, file ->
@@ -429,33 +467,78 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ saturation_json_collapsed }
 
-    TRUST4_VDJ.out.metricsJSON
+    VDJ_METRICS.out.metricsJSON.view()
+    VDJ_METRICS.out.metricsJSON
     .map {
         meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
     }
-    .groupTuple(by:[0])
-    .set{ trust4_metrics_collapsed }
+    .set { trust4_metrics_collapsed }
+    trust4_metrics_collapsed.view()
 
-    TRUST4_VDJ.out.kneeData
+    //VDJ_METRICS.out.kneeData.view()
+    VDJ_METRICS.out.kneeData
     .map {
         meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
     }
-    .groupTuple(by:[0])
     .set{ trust4_kneeData_collapsed }
+    //trust4_kneeData_collapsed.view()
 
-    TRUST4_VDJ.out.cloneType
+    //VDJ_METRICS.out.cloneType.view()
+    VDJ_METRICS.out.cloneType
     .map {
         meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
     }
-    .groupTuple(by:[0])
     .set{ trust4_cloneType_collapsed }
-
+    //trust4_cloneType_collapsed.view()
+    
     GET_VERSIONS_VDJ()
 
     //starsolo_summary_collapsed.view()
