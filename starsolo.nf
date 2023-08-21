@@ -99,7 +99,6 @@ process STARSOLO_COMPLEX {
     path index
     path gtf
     path whitelist
-    path whitelist2
 
     output:
     tuple val(meta), path('*d.out.bam')       , emit: bam
@@ -136,9 +135,9 @@ process STARSOLO_COMPLEX {
     --soloType $params.soloType \\
     --soloCBposition $params.complexCBposition \\
     --soloUMIposition $params.complexUMIposition \\
-    --soloAdapterSequence $params.complexAdapterSequence \\
-    --soloAdapterMismatchesNmax $params.complexAdapterMismatchesNmax \\
-    --soloCBwhitelist $whitelist $whitelist2 \\
+    --soloAdapterSequence $params.soloAdapterSequence \\
+    --soloAdapterMismatchesNmax $params.soloAdapterMismatchesNmax \\
+    --soloCBwhitelist $whitelist \\
     --clipAdapterType $params.clipAdapterType \\
     --outFilterScoreMin $params.outFilterScoreMin \\
     --soloCBmatchWLtype $params.soloCBmatchWLtype \\

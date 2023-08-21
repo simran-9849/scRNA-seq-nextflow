@@ -75,20 +75,19 @@ workflow scRNAseq {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
-    
+    ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
+
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
     if(params.soloType == "CB_UMI_Complex"){
-        ch_whitelist2 = file(params.whitelist2)
         STARSOLO_COMPLEX(
             ch_cDNA_read,
             ch_bc_read,
             ch_genomeDir,
             ch_genomeGTF,
-            ch_whitelist,
-            ch_whitelist2
+            ch_barcodelist
         )
         ch_genome_bam       = STARSOLO_COMPLEX.out.bam
         ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
@@ -99,7 +98,7 @@ workflow scRNAseq {
             ch_bc_read,
             ch_genomeDir,
             ch_genomeGTF,
-            ch_whitelist,
+            ch_whitelist
         )
         ch_genome_bam       = STARSOLO.out.bam
         ch_genome_bam_index = STARSOLO.out.bai
