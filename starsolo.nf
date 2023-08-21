@@ -21,16 +21,16 @@ process STARSOLO {
     path whitelist
 
     output:
-    tuple val(meta), path('*d.out.bam')                           , emit: bam
-    tuple val(meta), path('*d.out.bam.bai')                       , emit: bai
-    tuple val(meta), path('*Log.final.out')                       , emit: log_final
-    tuple val(meta), path('*Log.out')                             , emit: log_out
-    tuple val(meta), path('*Log.progress.out')                    , emit: log_progress
-    tuple val(meta), path('*Solo.out/Gene*/filtered')             , emit: filteredDir
-    tuple val(meta), path('*Solo.out/Gene*/raw')                  , emit: rawDir
-    tuple val(meta), path('Summary.unique.csv')                   , emit: summary_unique
-    tuple val(meta), path('UMIperCellSorted.unique.txt')          , emit: UMI_file_unique
-    tuple val(meta), path('*Solo.out/Gene*/CellReads.stats')      , emit: cellReads_stats
+    tuple val(meta), path('*d.out.bam')                                            , emit: bam
+    tuple val(meta), path('*d.out.bam.bai')                                        , emit: bai
+    tuple val(meta), path('*Log.final.out')                                        , emit: log_final
+    tuple val(meta), path('*Log.out')                                              , emit: log_out
+    tuple val(meta), path('*Log.progress.out')                                     , emit: log_progress
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/filtered")             , emit: filteredDir
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/raw")                  , emit: rawDir
+    tuple val(meta), path('Summary.unique.csv')                                    , emit: summary_unique
+    tuple val(meta), path('UMIperCellSorted.unique.txt')                           , emit: UMI_file_unique
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/CellReads.stats")      , emit: cellReads_stats
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
@@ -101,13 +101,16 @@ process STARSOLO_COMPLEX {
     path whitelist
 
     output:
-    tuple val(meta), path('*d.out.bam')       , emit: bam
-    tuple val(meta), path('*d.out.bam.bai')   , emit: bai
-    tuple val(meta), path('*Log.final.out')   , emit: log_final
-    tuple val(meta), path('*Log.out')         , emit: log_out
-    tuple val(meta), path('*Log.progress.out'), emit: log_progress
-    tuple val(meta), path('*Solo.out/Gene')   , emit: solo_out
-    //path "versions.yml"                       , emit: versions
+    tuple val(meta), path('*d.out.bam')                                            , emit: bam
+    tuple val(meta), path('*d.out.bam.bai')                                        , emit: bai
+    tuple val(meta), path('*Log.final.out')                                        , emit: log_final
+    tuple val(meta), path('*Log.out')                                              , emit: log_out
+    tuple val(meta), path('*Log.progress.out')                                     , emit: log_progress
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/filtered")             , emit: filteredDir
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/raw")                  , emit: rawDir
+    tuple val(meta), path('Summary.unique.csv')                                    , emit: summary_unique
+    tuple val(meta), path('UMIperCellSorted.unique.txt')                           , emit: UMI_file_unique
+    tuple val(meta), path("*Solo.out/${params.soloFeatures}/CellReads.stats")      , emit: cellReads_stats
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript

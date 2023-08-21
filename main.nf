@@ -91,7 +91,7 @@ workflow scRNAseq {
         )
         ch_genome_bam       = STARSOLO_COMPLEX.out.bam
         ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
-        ch_starsolo_out     = STARSOLO_COMPLEX.out.solo_out
+        ch_filteredDir      = STARSOLO_COMPLEX.out.filteredDir
     }else{
         STARSOLO(
             ch_cDNA_read,
@@ -102,6 +102,7 @@ workflow scRNAseq {
         )
         ch_genome_bam       = STARSOLO.out.bam
         ch_genome_bam_index = STARSOLO.out.bai
+        ch_filteredDir      = STARSOLO_COMPLEX.out.filteredDir
     }
 
     if(params.soloMultiMappers != "Unique"){
@@ -127,8 +128,8 @@ workflow scRNAseq {
         )
     }else{
         CHECK_SATURATION(
-            STARSOLO.out.bam,
-            STARSOLO.out.filteredDir,
+            ch_genome_bam,
+            ch_filteredDir,
             ch_whitelist
         )
         GET_VERSIONS(
