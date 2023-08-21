@@ -92,6 +92,8 @@ workflow scRNAseq {
         ch_genome_bam       = STARSOLO_COMPLEX.out.bam
         ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
         ch_filteredDir      = STARSOLO_COMPLEX.out.filteredDir
+        ch_starsolo_summary = STARSOLO_COMPLEX.out.summary_unique
+        ch_starsolo_UMI     = STARSOLO_COMPLEX.out.UMI_file_unique
     }else{
         STARSOLO(
             ch_cDNA_read,
@@ -102,7 +104,9 @@ workflow scRNAseq {
         )
         ch_genome_bam       = STARSOLO.out.bam
         ch_genome_bam_index = STARSOLO.out.bai
-        ch_filteredDir      = STARSOLO_COMPLEX.out.filteredDir
+        ch_filteredDir      = STARSOLO.out.filteredDir
+        ch_starsolo_summary = STARSOLO.out.summary_unique
+        ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
     }
 
     if(params.soloMultiMappers != "Unique"){
@@ -155,9 +159,9 @@ workflow scRNAseq {
         )
     }else{
         REPORT(
-            STARSOLO.out.summary_unique,
-            STARSOLO.out.UMI_file_unique,
-            STARSOLO.out.filteredDir,
+            ch_starsolo_summary,
+            ch_starsolo_UMI,
+            ch_filteredDir,
             ch_qualimap_multiqc,
             CHECK_SATURATION.out.outJSON,
             GET_VERSIONS.out.versions
