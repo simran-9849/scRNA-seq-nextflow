@@ -79,10 +79,10 @@ process STARSOLO {
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
-    pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
-    cp ${prefix}.Solo.out/*/Summary.csv Summary.unique.csv
-    cp ${prefix}.Solo.out/*/UMIperCellSorted.txt UMIperCellSorted.unique.txt
+    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/raw/*
+    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/filtered/*
+    cp ${prefix}.Solo.out/${params.soloFeatures}/Summary.csv Summary.unique.csv
+    cp ${prefix}.Solo.out/${params.soloFeatures}/UMIperCellSorted.txt UMIperCellSorted.unique.txt
     """
 }
 
@@ -148,14 +148,17 @@ process STARSOLO_COMPLEX {
     --soloUMIdedup $params.soloUMIdedup \\
     --soloMultiMappers $params.soloMultiMappers \\
     --soloFeatures $params.soloFeatures \\
+    --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate \\
     --outBAMsortingBinsN 300
     
     samtools index *.bam
 
-    pigz -p $task.cpus ${prefix}.Solo.out/Gene/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/Gene/filtered/*
+    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/raw/*
+    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/filtered/*
+    cp ${prefix}.Solo.out/${params.soloFeatures}/Summary.csv Summary.unique.csv
+    cp ${prefix}.Solo.out/${params.soloFeatures}/UMIperCellSorted.txt UMIperCellSorted.unique.txt
     """
 }
 
