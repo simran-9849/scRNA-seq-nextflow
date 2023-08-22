@@ -87,7 +87,7 @@ workflow scRNAseq {
             ch_bc_read,
             ch_genomeDir,
             ch_genomeGTF,
-            ch_barcodelist
+            ch_barcodelist.toList()
         )
         ch_genome_bam       = STARSOLO_COMPLEX.out.bam
         ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
