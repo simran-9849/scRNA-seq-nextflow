@@ -75,13 +75,14 @@ workflow scRNAseq {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
-    ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
     if(params.soloType == "CB_UMI_Complex"){
+        if (!params.barcodelist) { exit 1, 'Please provide barcodelist parameter to use STARSOLO_COMPLEX process!' }
+        ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
         STARSOLO_COMPLEX(
             ch_cDNA_read,
             ch_bc_read,
@@ -280,7 +281,8 @@ workflow vdj_process {
     //params.soloStrand = "Reverse"
 
     if(params.soloType == "CB_UMI_Complex"){
-        // barcodelist will only be required for complex mode
+        // barcodelist will be required for complex mode
+        if (!params.barcodelist) { exit 1, 'Please provide barcodelist parameter to use STARSOLO_COMPLEX process!' }
         ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
         STARSOLO_COMPLEX_VDJ(
             ch_cDNA_read,
