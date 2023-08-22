@@ -136,8 +136,8 @@ process STARSOLO_COMPLEX {
     --outFileNamePrefix ${prefix}. \\
     --soloStrand $params.soloStrand \\
     --soloType $params.soloType \\
-    --soloCBposition $params.complexCBposition \\
-    --soloUMIposition $params.complexUMIposition \\
+    --soloCBposition $params.soloCBposition \\
+    --soloUMIposition $params.soloUMIposition \\
     --soloAdapterSequence $params.soloAdapterSequence \\
     --soloAdapterMismatchesNmax $params.soloAdapterMismatchesNmax \\
     --soloCBwhitelist $whitelist \\
