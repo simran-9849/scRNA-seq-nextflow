@@ -7,7 +7,7 @@ dependencies:
   - plotly
   - samtools==1.15
   - star==2.7.10a
-  - cutadapt
+  - cutadapt>=3.5
   - fastx_toolkit
   - fastqc
   - r-flexdashboard
