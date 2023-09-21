@@ -96,116 +96,17 @@ process VDJ_METRICS {
     def starsoloSummary_map = associate_feature_type(starsoloSummary_featureTypes, starsoloSummary)
     def filteredDir_map     = associate_feature_type(filteredDir_featureTypes, filteredDir)
 
-    if(filteredDir_featureTypes.contains("GEX")){
-        if(report_featureTypes.contains("VDJ-B") && report_featureTypes.contains("VDJ-T")){
-        """
-        zcat ${filteredDir_map["GEX"]}/barcodes.tsv.gz > gex_cells.tsv
-        ## VDJ-B
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-B"]} \\
-                                 VDJ-B
-        mv VDJ-B.vdj_metrics.json ${meta.id}_VDJ-B.vdj_metrics.json
-        mv VDJ-B.knee_input.tsv ${meta.id}_VDJ-B.knee_input.tsv
-        mv VDJ-B.cloneType_out.tsv ${meta.id}_VDJ-B.cloneType_out.tsv
-        ## VDJ-T
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-T"]} \\
-                                 VDJ-T
-        mv VDJ-T.vdj_metrics.json ${meta.id}_VDJ-T.vdj_metrics.json
-        mv VDJ-T.knee_input.tsv ${meta.id}_VDJ-T.knee_input.tsv
-        mv VDJ-T.cloneType_out.tsv ${meta.id}_VDJ-T.cloneType_out.tsv
-        """
-        }else if(report_featureTypes.contains("VDJ-B") && !report_featureTypes.contains("VDJ-T")){
-        """
-        ## Filter trust4 result by gex cells
-        zcat ${filteredDir_map["GEX"]}/barcodes.tsv.gz > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-B"]} \\
-                                 VDJ-B
-        mv VDJ-B.vdj_metrics.json ${meta.id}_VDJ-B.vdj_metrics.json
-        mv VDJ-B.knee_input.tsv ${meta.id}_VDJ-B.knee_input.tsv
-        mv VDJ-B.cloneType_out.tsv ${meta.id}_VDJ-B.cloneType_out.tsv
-        """
-        }else if(!report_featureTypes.contains("VDJ-B") && report_featureTypes.contains("VDJ-T")){
-        """
-        ## Filter trust4 result by gex cells
-        zcat ${filteredDir_map["GEX"]}/barcodes.tsv.gz > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-T"]} \\
-                                 VDJ-T
-        mv VDJ-T.vdj_metrics.json ${meta.id}_VDJ-T.vdj_metrics.json
-        mv VDJ-T.knee_input.tsv ${meta.id}_VDJ-T.knee_input.tsv
-        mv VDJ-T.cloneType_out.tsv ${meta.id}_VDJ-T.cloneType_out.tsv
-        """
-        }
-    }else{
-        if(report_featureTypes.contains("VDJ-B") && report_featureTypes.contains("VDJ-T")){
-        """
-        ## No GEX, no filter, use all the barcode in the report as "gex_cells"
-        ## VDJ-B
-        awk 'NR>1 && \$1!="-"{print \$1}' TRUST_${meta.id}_VDJ-B_barcode_report.tsv > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-B"]} \\
-                                 VDJ-B
-        mv VDJ-B.vdj_metrics.json ${meta.id}_VDJ-B.vdj_metrics.json
-        mv VDJ-B.knee_input.tsv ${meta.id}_VDJ-B.knee_input.tsv
-        mv VDJ-B.cloneType_out.tsv ${meta.id}_VDJ-B.cloneType_out.tsv
-        ## VDJ-T
-        awk 'NR>1 && \$1!="-"{print \$1}' TRUST_${meta.id}_VDJ-T_barcode_report.tsv > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-T"]} \\
-                                 VDJ-T
-        mv VDJ-T.vdj_metrics.json ${meta.id}_VDJ-T.vdj_metrics.json
-        mv VDJ-T.knee_input.tsv ${meta.id}_VDJ-T.knee_input.tsv
-        mv VDJ-T.cloneType_out.tsv ${meta.id}_VDJ-T.cloneType_out.tsv
-        """
-        }else if(report_featureTypes.contains("VDJ-B") && !report_featureTypes.contains("VDJ-T")){
-        """
-        ## No GEX, no filter, use all the barcode in the report as "gex_cells"
-        awk 'NR>1 && \$1!="-"{print \$1}' TRUST_${meta.id}_VDJ-B_barcode_report.tsv > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-B_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-B"]} \\
-                                 VDJ-B
-        mv VDJ-B.vdj_metrics.json ${meta.id}_VDJ-B.vdj_metrics.json
-        mv VDJ-B.knee_input.tsv ${meta.id}_VDJ-B.knee_input.tsv
-        mv VDJ-B.cloneType_out.tsv ${meta.id}_VDJ-B.cloneType_out.tsv
-        """
-        }else if(!report_featureTypes.contains("VDJ-B") && report_featureTypes.contains("VDJ-T")){
-        """
-        ## No GEX, no filter, use all the barcode in the report as "gex_cells"
-        awk 'NR>1 && \$1!="-"{print \$1}' TRUST_${meta.id}_VDJ-T_barcode_report.tsv > gex_cells.tsv
-        trust4_metrics_filter.sh gex_cells.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_report.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_barcode_airr.tsv \\
-                                 TRUST_${meta.id}_VDJ-T_toassemble_bc.fa \\
-                                 ${starsoloSummary_map["VDJ-T"]} \\
-                                 VDJ-T
-        mv VDJ-T.vdj_metrics.json ${meta.id}_VDJ-T.vdj_metrics.json
-        mv VDJ-T.knee_input.tsv ${meta.id}_VDJ-T.knee_input.tsv
-        mv VDJ-T.cloneType_out.tsv ${meta.id}_VDJ-T.cloneType_out.tsv
-        """
-        }
-    }
+    def gex_cells           = filteredDir_featureTypes.contains("GEX") ? "${filteredDir_map['GEX']}/barcodes.tsv.gz" : "None"
+    def featureArgument     = report_map.findAll{it.key != "GEX"}.keySet()
+    def summaryArgument     = featureArgument.collect{ starsoloSummary_map[it] }.join(",")
+    featureArgument         = featureArgument.join(",")
+    """
+    
+    ## VDJ-B
+    trust4_metrics_filter.sh ${meta.id} \\
+                             ${featureArgument} \\
+                             ${gex_cells} \\
+                             ${summaryArgument}
 
+    """
 }
