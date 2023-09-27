@@ -64,8 +64,8 @@ starsolo_summary <- read_csv(params$starsolo_out,
                              col_names = c("item", "value")) %>%
                              mutate(
                                  value = case_when(
-                                 value > 1 ~ comma(value, accuracy = 1),
-                                 value <=1 ~ percent(value)
+                                 value >= 1 ~ comma(value, accuracy = 1),
+                                 value < 1 ~ percent(value)
                                  )
                              ) %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
