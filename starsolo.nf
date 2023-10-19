@@ -148,6 +148,7 @@ process STARSOLO_COMPLEX {
     --soloUMIdedup $params.soloUMIdedup \\
     --soloMultiMappers $params.soloMultiMappers \\
     --soloFeatures $params.soloFeatures \\
+    --soloCellFilter $params.soloCellFilter \\
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
     --outSAMtype BAM SortedByCoordinate \\
