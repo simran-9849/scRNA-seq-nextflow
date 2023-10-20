@@ -93,7 +93,7 @@ SaveH5Seurat(
 )
 
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
-qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
+qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3, group.by = "run")
 
 ## Filter by gene counts and mitochondrial percentage
 ## Check the number of cells left first, or subset will throw an error
