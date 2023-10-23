@@ -66,14 +66,23 @@ is_number_string <- function(x){
         all()
 }
 starsolo_summary <- read_csv(params$starsolo_out,
-                             col_names = c("item", "value")) %>%
-                             mutate(
-                                 value = case_when(
-                                 !is_number_string(value) ~ value,
-                                 value >= 1 ~ comma(as.numeric(value), accuracy = 1),
-                                 value < 1 ~ percent(as.numeric(value))
-                                 )
-                             ) %>%
+                             col_names = c("item", "value"),
+                             col_types = cols("c", "c"))
+starsolo_summary$data <- NA
+for(i in 1:nrow(starsolo_summary)){
+    if(is_number_string(starsolo_summary$value[i])){
+        if(as.numeric(starsolo_summary$value[i]) >= 1){
+            starsolo_summary$data[i] <- comma(as.numeric(starsolo_summary$value[i]), accuracy = 1)
+        }else{
+            starsolo_summary$data[i] <- percent(as.numeric(starsolo_summary$value[i]))
+        }
+    }else{
+        starsolo_summary$data[i] <- starsolo_summary$value[i]
+    }
+}
+starsolo_summary <- starsolo_summary %>%
+    select(-value) %>%
+    dplyr::rename("value" = "data") %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
 exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
 exon_ratio <- system(exon_cmd, intern = TRUE)
