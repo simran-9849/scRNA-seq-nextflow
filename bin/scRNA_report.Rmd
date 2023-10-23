@@ -60,12 +60,18 @@ config_plotly_fig <- function(fig){
     )
 }
 
+is_number_string <- function(x){
+    str_split(x, pattern="") %>% 
+        unlist %>% str_detect("[0-9.]") %>% 
+        all()
+}
 starsolo_summary <- read_csv(params$starsolo_out,
                              col_names = c("item", "value")) %>%
                              mutate(
                                  value = case_when(
-                                 value >= 1 ~ comma(value, accuracy = 1),
-                                 value < 1 ~ percent(value)
+                                 !is_number_string(value) ~ value,
+                                 value >= 1 ~ comma(as.numeric(value), accuracy = 1),
+                                 value < 1 ~ percent(as.numeric(value))
                                  )
                              ) %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
