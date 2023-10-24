@@ -211,7 +211,12 @@ def create_fastq_channel_featureTypes(LinkedHashMap row) {
         exit 1, "ERROR: Please check input samplesheet -> feature_types column does not exist!\n"
     }
 
+    if(!row.expected_cells){
+        exit 1, "ERROR: Please check input samplesheet -> expected_cells column does not exist!\n"
+    }
+
     meta.feature_types = row.feature_types
+    meta.expected_cells = row.expected_cells
     array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
 
     return array
@@ -221,11 +226,16 @@ workflow vdj {
     vdj_process()
     vdj_report(
         vdj_process.out.starsolo_summary,
-        vdj_process.out.starsolo_bam,
         vdj_process.out.starsolo_umi,
         vdj_process.out.starsolo_filteredDir,
         vdj_process.out.qualimap_outDir,
-        vdj_process.out.saturation_json
+        vdj_process.out.saturation_json,
+        vdj_process.out.trust4_report,
+        vdj_process.out.trust4_airr,
+        vdj_process.out.trust4_toassemble_bc,
+        vdj_process.out.trust4_finalOut,
+        vdj_process.out.trust4_kneeOut,
+        vdj_process.out.trust4_cellOut
     )
 }
 
@@ -268,6 +278,8 @@ workflow vdj_process {
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_whitelist = file(params.whitelist)
+    ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
+    ch_vdj_imgt_fasta = file(params.trust4_vdj_imgt_fasta)
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
@@ -358,6 +370,63 @@ workflow vdj_process {
     )
     ch_qualimap_outDir = QUALIMAP_VDJ.out.results
 
+    // aggregate BAM files to check if GEX library exists
+    ch_genome_bam
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ ch_bam_grouped }
+
+    ch_bc_read
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ ch_bcRead_grouped }
+
+    ch_cDNA_read
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ ch_cDNAread_grouped }
+
+    ch_starsolo_filteredDir
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ ch_filteredDir_grouped }
+
+    ch_starsolo_filteredDir
+    .map {
+        meta, file ->
+        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    }
+    .groupTuple(by:[0])
+    .set{ ch_filteredDir_grouped }
+    
+    TRUST4_VDJ(
+        ch_cDNAread_grouped,
+        ch_bcRead_grouped,
+        ch_bam_grouped,
+        ch_filteredDir_grouped,
+        ch_vdj_refGenome_fasta,
+        ch_vdj_imgt_fasta
+    )
+
+    ch_trust4_report        = TRUST4_VDJ.out.report
+    ch_trust4_airr          = TRUST4_VDJ.out.airr
+    ch_trust4_toassemble_bc = TRUST4_VDJ.out.toassemble_bc
+    ch_trust4_finalOut      = TRUST4_VDJ.out.finalOut
+    ch_trust4_kneeOut       = TRUST4_VDJ.out.kneeOut
+    ch_trust4_cellOut       = TRUST4_VDJ.out.cellOut
+
     emit:
         starsolo_summary     = ch_starsolo_summary
         starsolo_bam         = ch_genome_bam
@@ -365,59 +434,29 @@ workflow vdj_process {
         starsolo_filteredDir = ch_starsolo_filteredDir
         qualimap_outDir      = ch_qualimap_outDir
         saturation_json      = ch_saturation_json
-
+        trust4_report        = ch_trust4_report
+        trust4_airr          = ch_trust4_airr
+        trust4_toassemble_bc = ch_trust4_toassemble_bc
+        trust4_finalOut      = ch_trust4_finalOut
+        trust4_kneeOut       = ch_trust4_kneeOut
+        trust4_cellOut       = ch_trust4_cellOut
 }
 
 workflow vdj_report {
     take:
     starsolo_summary
-    starsolo_bam
     starsolo_umi
     starsolo_filteredDir
     qualimap_outDir
     saturation_json
+    trust4_report
+    trust4_airr
+    trust4_toassemble_bc
+    trust4_finalOut
+    trust4_kneeOut
+    trust4_cellOut
 
     main:
-    ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
-    ch_vdj_imgt_fasta = file(params.trust4_vdj_imgt_fasta)
-    ch_whitelist = file(params.whitelist)
-    
-    //starsolo_bam.view()
-    TRUST4_VDJ(
-        starsolo_bam,
-        starsolo_summary,
-        ch_vdj_refGenome_fasta,
-        ch_vdj_imgt_fasta,
-        ch_whitelist
-    )
-
-    ch_trust4_report = TRUST4_VDJ.out.trust4_report
-    ch_trust4_airr   = TRUST4_VDJ.out.trust4_airr
-    ch_toassemble_bc = TRUST4_VDJ.out.toassemble_bc
-
-    ch_trust4_report
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ vdj_report }
-
-    ch_trust4_airr
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ vdj_airr }
-
-    ch_toassemble_bc
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ vdj_toassemble_bc }
 
     starsolo_summary
     .map {
@@ -427,7 +466,6 @@ workflow vdj_report {
     }
     .groupTuple(by:[0])
     .set{ starsolo_summary_collapsed }
-
 
     starsolo_umi
     .map {
@@ -447,12 +485,123 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ starsolo_filteredDir_collapsed }
 
+    trust4_report
+    .map {
+         meta, file ->
+            def tmp = []
+            def feature = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_report }
+
+    trust4_airr
+    .map {
+         meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_airr }
+
+    trust4_toassemble_bc
+    .map {
+         meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_toassemble_bc }
+
+    trust4_finalOut
+    .map {
+         meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_finalOut }
+
+    trust4_kneeOut
+    .map {
+         meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_kneeOut }
+    
     VDJ_METRICS(
         vdj_report,
         vdj_airr,
         vdj_toassemble_bc,
-        starsolo_summary_collapsed,
-        starsolo_filteredDir_collapsed
+        vdj_kneeOut,
+        starsolo_summary_collapsed
     )
     
     qualimap_outDir
@@ -474,6 +623,7 @@ workflow vdj_report {
     .set{ saturation_json_collapsed }
 
     VDJ_METRICS.out.metricsJSON.view()
+
     VDJ_METRICS.out.metricsJSON
     .map {
         meta, file ->
@@ -498,27 +648,27 @@ workflow vdj_report {
     trust4_metrics_collapsed.view()
 
     //VDJ_METRICS.out.kneeData.view()
-    VDJ_METRICS.out.kneeData
-    .map {
-        meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ trust4_kneeData_collapsed }
+    //VDJ_METRICS.out.kneeData
+    //.map {
+    //    meta, file ->
+    //        def tmp = []
+    //        if(file instanceof List){
+    //            tmp = file
+    //        }else{
+    //            tmp = [ file ]
+    //        }
+    //        tmp.findAll { it =~ /VDJ-[BT]/ }
+    //        .collect {
+    //            if(it =~ /VDJ-T/){
+    //                ["VDJ-T", it]
+    //            }else if(it =~ /VDJ-B/){
+    //                ["VDJ-B", it]
+    //            }
+    //        }
+    //        .transpose()
+    //        .plus(0, [id:meta.id])
+    //}
+    //.set{ trust4_kneeData_collapsed }
     //trust4_kneeData_collapsed.view()
 
     //VDJ_METRICS.out.cloneType.view()
@@ -548,15 +698,15 @@ workflow vdj_report {
     GET_VERSIONS_VDJ()
 
     //starsolo_summary_collapsed.view()
-    REPORT_VDJ(
-        starsolo_summary_collapsed,
-        starsolo_umi_collapsed,
-        starsolo_filteredDir_collapsed,
-        qualimap_outDir_collapsed,
-        saturation_json_collapsed,
-        trust4_metrics_collapsed,
-        trust4_kneeData_collapsed,
-        trust4_cloneType_collapsed,
-        GET_VERSIONS_VDJ.out.versions
-    )
+    //REPORT_VDJ(
+    //    starsolo_summary_collapsed,
+    //    starsolo_umi_collapsed,
+    //    starsolo_filteredDir_collapsed,
+    //    qualimap_outDir_collapsed,
+    //    saturation_json_collapsed,
+    //    trust4_metrics_collapsed,
+    //    trust4_kneeData_collapsed,
+    //    trust4_cloneType_collapsed,
+    //    GET_VERSIONS_VDJ.out.versions
+    //)
 }

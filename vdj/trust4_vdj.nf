@@ -26,7 +26,7 @@ process TRUST4_VDJ {
 
     output:
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_toassemble_bc.fa"), emit: toassemble_bc
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_report.tsv"), emit: report
+    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_report.filterDiffusion.tsv"), emit: report
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_airr.tsv"), emit: airr
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_final.out"), emit: finalOut
     tuple val(meta), path("${meta.id}*_kneeOut.tsv"), emit: kneeOut
@@ -54,12 +54,12 @@ process TRUST4_VDJ {
     // extract expectedCells from BAM input channel                           
     def expectedCells_map = associate_feature_type(starsoloBAM_featureTypes,  starsoloBAM_expectedCells)
 
-    def striptString = []
+    def scriptString = []
     def vdj_featureTypes = starsoloBAM_featureTypes.collect()
     vdj_featureTypes.remove("GEX")
     if(starsoloBAM_featureTypes.contains("GEX")){
         vdj_featureTypes.forEach{
-            striptString.push(
+            scriptString.push(
             """
             ## process bam and generate input reads file
             gex_cells=\$(mktemp -p ./)
@@ -98,7 +98,7 @@ process TRUST4_VDJ {
         }
     }else{
         vdj_featureTypes.forEach{
-            striptString.push(
+            scriptString.push(
             """
             ## process bam and generate input reads file
             vdj_cellCalling.sh --inputBAM ${starsoloBAM_map[it]} \\
@@ -136,7 +136,7 @@ process TRUST4_VDJ {
             )
         }
     }
-    striptString.join("\n")
+    scriptString.join("\n")
 }
 
 process VDJ_METRICS {
@@ -161,15 +161,12 @@ process VDJ_METRICS {
     tuple val(meta), val(report_featureTypes),          path(report)
     tuple val(meta), val(airr_featureTypes),            path(airr)
     tuple val(meta), val(toassemble_bc_featureTypes),   path(toassemble_bc)
+    tuple val(meta), val(kneeOut_featureTypes),         path(kneeOut)
     tuple val(meta), val(starsoloSummary_featureTypes), path(starsoloSummary)
-    tuple val(meta), val(filteredDir_featureTypes),     path(filteredDir)
 
     output:
     tuple val(meta), path("${meta.id}_*.vdj_metrics.json"), emit: metricsJSON
-    tuple val(meta), path("${meta.id}_*.knee_input.tsv"), emit: kneeData
     tuple val(meta), path("${meta.id}_*.cloneType_out.tsv"), emit: cloneType
-    tuple val(meta), path("TRUST_${meta.id}_*_barcode_report.filtered.tsv"), emit: trust4_report
-    tuple val(meta), path("TRUST_${meta.id}_*_barcode_airr.filtered.tsv"), emit: trust4_airr
 
     script:
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
@@ -188,20 +185,24 @@ process VDJ_METRICS {
     def report_map          = associate_feature_type(report_featureTypes, report)
     def airr_map            = associate_feature_type(airr_featureTypes, airr)
     def toassemble_bc_map   = associate_feature_type(toassemble_bc_featureTypes, toassemble_bc)
+    def kneeOut_map         = associate_feature_type(kneeOut_featureTypes, kneeOut)
     def starsoloSummary_map = associate_feature_type(starsoloSummary_featureTypes, starsoloSummary)
-    def filteredDir_map     = associate_feature_type(filteredDir_featureTypes, filteredDir)
 
-    def gex_cells           = filteredDir_featureTypes.contains("GEX") ? "${filteredDir_map['GEX']}/barcodes.tsv.gz" : "None"
-    def featureArgument     = report_map.findAll{it.key != "GEX"}.keySet()
-    def summaryArgument     = featureArgument.collect{ starsoloSummary_map[it] }.join(",")
-    featureArgument         = featureArgument.join(",")
-    """
-    
-    ## VDJ-B
-    trust4_metrics_filter.sh ${meta.id} \\
-                             ${featureArgument} \\
-                             ${gex_cells} \\
-                             ${summaryArgument}
-
-    """
+    def scriptString = []
+    def vdj_featureTypes = report_featureTypes.collect()
+    vdj_featureTypes.forEach{
+        scriptString.push(
+        """
+        trust4_metrics.sh ${report_map[it]} \\
+                          ${airr_map[it]} \\
+                          ${toassemble_bc_map[it]} \\
+                          ${kneeOut_map[it]} \\
+                          ${it} \\
+                          ${starsoloSummary_map[it]} \\
+                          ${meta.id}_${it}.vdj_metrics.json \\
+                          ${meta.id}_${it}.cloneType_out.tsv
+        """.stripIndent()
+        )
+    }
+    scriptString.join("\n")
 }
