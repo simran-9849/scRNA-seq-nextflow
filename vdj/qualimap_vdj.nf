@@ -1,6 +1,8 @@
 process QUALIMAP_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_medium'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/qualimap",
         mode: params.publish_dir_mode,
         enabled: params.outdir as boolean

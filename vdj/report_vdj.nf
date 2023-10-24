@@ -1,6 +1,8 @@
 process REPORT_VDJ {
     tag "${meta.id}:VDJ_report"
     label 'process_medium'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/report",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean

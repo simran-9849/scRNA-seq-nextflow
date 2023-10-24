@@ -1,6 +1,8 @@
 process CAT_TRIM_FASTQ_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_low'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/cutqc",
         mode: params.publish_dir_mode,
         saveAs: { filename ->

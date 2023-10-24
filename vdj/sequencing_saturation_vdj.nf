@@ -1,6 +1,8 @@
 process CHECK_SATURATION_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/saturation/",
         mode: "${params.publish_dir_mode}",
         enabled: params.publishSaturation as boolean

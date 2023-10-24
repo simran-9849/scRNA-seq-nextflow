@@ -1,6 +1,8 @@
 process STARSOLO_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/starsolo/${meta.id}_${meta.feature_types}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean,
@@ -73,7 +75,8 @@ process STARSOLO_VDJ {
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
     --outSAMunmapped Within KeepPairs \\
-    --outSAMtype BAM SortedByCoordinate
+    --outSAMtype BAM SortedByCoordinate \\
+    --outBAMsortingBinsN 300
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
@@ -92,6 +95,8 @@ process STARSOLO_VDJ {
 process STARSOLO_MULTIPLE_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_low'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/starsolo/${meta.id}_${meta.feature_types}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
@@ -122,6 +127,8 @@ process STARSOLO_MULT_SUMMARY_VDJ {
     // Update starsolo summary file for multiple gene reads
     tag "${meta.id}:${meta.feature_types}"
     label 'process_low'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/starsolo/${meta.id}_${meta.feature_types}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
@@ -149,6 +156,8 @@ process STARSOLO_MULT_SUMMARY_VDJ {
 process STARSOLO_MULT_UMI_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_low'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/starsolo/${meta.id}_${meta.feature_types}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
@@ -168,6 +177,8 @@ process STARSOLO_MULT_UMI_VDJ {
 process STARSOLO_COMPLEX_VDJ {
     tag "${meta.id}:${meta.feature_types}"
     label 'process_high'
+    cache 'lenient'
+    fair true
     publishDir "${params.outdir}/starsolo/${meta.id}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean,
