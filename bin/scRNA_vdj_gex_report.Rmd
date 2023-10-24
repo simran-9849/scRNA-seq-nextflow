@@ -1,5 +1,5 @@
 ---
-title: "Thunderbio VDJ Report"
+title: "ThunderBio VDJ Report"
 date: "`r Sys.Date()`"
 output: 
   flexdashboard::flex_dashboard:
@@ -23,12 +23,20 @@ params:
   percent_mt_cutoff: 100
   pca_dim: 30
   resolution: 0.8
-  VDJ_T_metrics: "VDJ-T_metrics.json"
+  VDJ_B_report: "VDJ_B_report.tsv"
+  VDJ_B_airr: "VDJ_B_airr.tsv"
+  VDJ_B_kneeOut: "VDJ_B_kneeOut.tsv"
+  VDJ_B_finalOut: "VDJ_B_finalOut.tsv"
+  VDJ_B_cells: "VDJ_B_cells.tsv"
   VDJ_B_metrics: "VDJ-B_metrics.json"
-  VDJ_T_kneeData: "VDJ-T.kneeData.tsv"
-  VDJ_B_kneeData: "VDJ-B.kneeData.tsv"
+  VDJ_B_cloneType : "VDJ-B.cloneType.tsv"
+  VDJ_T_report: "VDJ_T_report.tsv"
+  VDJ_T_airr: "VDJ_T_airr.tsv"
+  VDJ_T_kneeOut: "VDJ_T_kneeOut.tsv"
+  VDJ_T_finalOut: "VDJ_T_finalOut.tsv"
+  VDJ_T_cells: "VDJ_T_cells.tsv"
+  VDJ_T_metrics: "VDJ-T_metrics.json"
   VDJ_T_cloneType: "VDJ-T.cloneType.tsv"
-  VDJ_B_cloneType: "VDJ-B.cloneType.tsv"
 ---
 
 ```{r include=FALSE}
@@ -68,6 +76,23 @@ config_plotly_fig <- function(fig, ...){
     )
 }
 
+## define info icon funciton
+infoIcon <- function(info,
+                     class = "fa fa-info-circle",
+                     style="font-size: 1.25rem; color: #545b62;"){
+  ## Make HTML
+  outTag <- paste0('<i class="',
+                   class,
+                   '" aria-hidden="true" ',
+                   'data-tippy-content="',
+                   info,
+                   '" ',
+                   'style="',
+                   style,'"></i>')
+  return(HTML(outTag))
+}
+
+
 ## decide whether to incldue each page
 ## conditional page solution is from: https://stackoverflow.com/questions/59202693/how-can-i-create-a-conditional-flexdashboard-layout
 if(is.null(params$starsolo_matrixDir) || params$starsolo_matrixDir == "") {
@@ -90,14 +115,29 @@ if(is.null(params$VDJ_B_metrics) || params$VDJ_B_metrics == "") {
 `r if(!include_gex){"\\begin{comment}"} else {NULL}`
 
 ```{r process_gex, include = FALSE, eval = include_gex}
+is_number_string <- function(x){
+    str_split(x, pattern="") %>% 
+        unlist %>% str_detect("[0-9.]") %>% 
+        all()
+}
 starsolo_summary <- read_csv(params$starsolo_out,
-                             col_names = c("item", "value")) %>%
-                             mutate(
-                                 value = case_when(
-                                 value > 1 ~ comma(value, accuracy = 1),
-                                 value <=1 ~ percent(value)
-                                 )
-                             ) %>%
+                             col_names = c("item", "value"),
+                             col_types = cols("c", "c"))
+starsolo_summary$data <- NA
+for(i in 1:nrow(starsolo_summary)){
+    if(is_number_string(starsolo_summary$value[i])){
+        if(as.numeric(starsolo_summary$value[i]) >= 1){
+            starsolo_summary$data[i] <- comma(as.numeric(starsolo_summary$value[i]), accuracy = 1)
+        }else{
+            starsolo_summary$data[i] <- percent(as.numeric(starsolo_summary$value[i]))
+        }
+    }else{
+        starsolo_summary$data[i] <- starsolo_summary$value[i]
+    }
+}
+starsolo_summary <- starsolo_summary %>%
+    select(-value) %>%
+    dplyr::rename("value" = "data") %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
 exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
 exon_ratio <- system(exon_cmd, intern = TRUE)
@@ -172,6 +212,12 @@ if(filtered_cells >= 150){
   margin-left: 10px;
   margin-right: 10px;
 }
+```
+
+```{js echo = FALSE}
+// shrink navbar height
+document.querySelector(".navbar").classList.add("pt-1")
+document.querySelector(".navbar").classList.add("pb-1")
 ```
 
 GEX {data-orientation=rows}
@@ -510,6 +556,11 @@ Row
 
 ```{r include = FALSE, eval = include_tcr}
 vdj_t_metrics <- fromJSON(params$VDJ_T_metrics)
+## write metrics to tsv
+fromJSON(params$VDJ_T_metrics) %>% 
+    as.data.frame %>% t() %>% as.data.frame() %>% 
+    rownames_to_column("term") %>% 
+    write_tsv(paste0(params$sampleName, "_VDJ-T.metrics.tsv"), col_names=FALSE)
 ```
 
 ```{r eval = include_tcr}
@@ -573,17 +624,15 @@ vdj_t_tbl %>%
 
 ```{r eval = include_tcr}
 cellNum <- as.numeric(vdj_t_metrics$cells)
-vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeData)
+vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeOut, col_names = c("CB", "UMI"))
+vdj_t_cells <- read_tsv(params$VDJ_T_cells)
 vdj_t_knee <- vdj_t_kneeData %>% 
-    mutate(UMI = chain1_UMI+chain2_UMI) %>%
-    select(CB, UMI) %>%
-    arrange(desc(UMI)) %>%
     mutate(
         cell = c(1:nrow(vdj_t_kneeData)),
         group = case_when(
-            cell <= cellNum ~ "cell",
+            CB %in% vdj_t_cells$CB ~ "cell",
             TRUE ~ "background"
-            )
+        )
     )
 fig <- plot_ly(data = vdj_t_knee, x = ~cell, y = ~UMI, type = 'scatter', mode = 'lines',
                color = ~group, colors = c('grey', '#002366'),
@@ -637,13 +686,12 @@ vdj_t_tbl <- tribble(
   ~term, ~value,
   "Median TRB/TRD UMIs per Cell", vdj_t_metrics$medianUMIsChain1,
   "Median TRA/TRG UMIs per Cell", vdj_t_metrics$medianUMIsChain2,
-  "Cells with Full Length in-frame Chain", vdj_t_metrics$cellsWithFullLengthChain,
-  "Cells with Full Length in-frame TRB", vdj_t_metrics$cellsWithFullLengthChainTRB,
-  "Cells with Full Length in-frame TRD", vdj_t_metrics$cellsWithFullLengthChainTRD,
-  "Cells with Full Length in-frame TRA", vdj_t_metrics$cellsWithFullLengthChainTRA,
-  "Cells with Full Length in-frame TRG", vdj_t_metrics$cellsWithFullLengthChainTRG,
-  "Cells with Full Lenght in-frame TRATRB pair", vdj_t_metrics$cellsWithFullLengthChainTRATRB,
-  "Cells with Full Lenght in-frame TRGTRD pair", vdj_t_metrics$cellsWithFullLengthChainTRGTRD
+  "Cells with Productive TRB", vdj_t_metrics$cellsWithProductiveChainTRB,
+  "Cells with Productive TRD", vdj_t_metrics$cellsWithProductiveChainTRD,
+  "Cells with Productive TRA", vdj_t_metrics$cellsWithProductiveChainTRA,
+  "Cells with Productive TRG", vdj_t_metrics$cellsWithProductiveChainTRG,
+  "Cells with Productive TRATRB pair", vdj_t_metrics$cellsWithProductiveChainTRATRB,
+  "Cells with Productive TRGTRD pair", vdj_t_metrics$cellsWithProductiveChainTRGTRD
 ) %>%
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
@@ -664,11 +712,21 @@ Row
 if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
     ## extract data from seuratData
+    tcr_cdrSeq <- read_tsv(params$VDJ_T_report) %>%
+        select(`#barcode`, `chain1`, `chain2`)
+    tcr_cdrSeq$chain1_cdr3 <- ""
+    tcr_cdrSeq$chain2_cdr3 <- ""
+    for(i in 1:nrow(tcr_cdrSeq)){
+        tcr_cdrSeq$chain1_cdr3[i] <- unlist(strsplit(tcr_cdrSeq$chain1[i], ","))[6]
+        tcr_cdrSeq$chain2_cdr3[i] <- unlist(strsplit(tcr_cdrSeq$chain2[i], ","))[6]
+    }
+    
     tcr_cells <- vdj_t_knee %>%
         filter(group == "cell") %>%
         pull(CB)
     tcr_data <- vdj_t_kneeData %>%
-        filter(CB %in% tcr_cells)
+        filter(CB %in% tcr_cells) %>%
+        left_join(tcr_cdrSeq, by = c("CB" = "#barcode"))
     clusterData2 <- clusterData %>% left_join(tcr_data, by = c("bc" = "CB")) %>%
         dplyr::select(bc, UMAP_1, UMAP_2, chain1_cdr3, chain2_cdr3) %>%
         dplyr::mutate(
@@ -743,6 +801,10 @@ Row
 
 ```{r include = FALSE, eval = include_bcr}
 vdj_b_metrics <- fromJSON(params$VDJ_B_metrics)
+fromJSON(params$VDJ_B_metrics) %>% 
+    as.data.frame %>% t() %>% as.data.frame() %>% 
+    rownames_to_column("term") %>% 
+    write_tsv(paste0(params$sampleName, "_VDJ-B.metrics.tsv"), col_names=FALSE)
 ```
 
 ```{r eval = include_bcr}
@@ -806,17 +868,15 @@ vdj_b_tbl %>%
 
 ```{r eval = include_bcr}
 cellNum <- as.numeric(vdj_b_metrics$cells)
-vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeData)
+vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeOut, col_names = c("CB", "UMI"))
+vdj_b_cells <- read_tsv(params$VDJ_B_cells)
 vdj_b_knee <- vdj_b_kneeData %>% 
-    mutate(UMI = chain1_UMI+chain2_UMI) %>%
-    select(CB, UMI) %>%
-    arrange(desc(UMI)) %>%
     mutate(
         cell = c(1:nrow(vdj_b_kneeData)),
         group = case_when(
-            cell <= cellNum ~ "cell",
+            CB %in% vdj_b_cells$CB ~ "cell",
             TRUE ~ "background"
-            )
+        )
     )
 fig <- plot_ly(data = vdj_b_knee, x = ~cell, y = ~UMI, type = 'scatter', mode = 'lines',
                color = ~group, colors = c('grey', '#002366'),
@@ -871,12 +931,11 @@ vdj_b_tbl <- tribble(
   ~term, ~value,
   "Median IGH UMIs per Cell", vdj_b_metrics$medianUMIsChain1,
   "Median IGK/L UMIs per Cell", vdj_b_metrics$medianUMIsChain2,
-  "Cells with Full Length in-frame Chain", vdj_b_metrics$cellsWithFullLengthChain,
-  "Cells with Full Length in-frame IGH", vdj_b_metrics$cellsWithFullLengthChainIGH,
-  "Cells with Full Length in-frame IGK", vdj_b_metrics$cellsWithFullLengthChainIGK,
-  "Cells with Full Length in-frame IGL", vdj_b_metrics$cellsWithFullLengthChainIGL,
-  "Cells with Full Lenght in-frame IGKIGH pair", vdj_b_metrics$cellsWithFullLengthChainIGKIGH,
-  "Cells with Full Lenght in-frame IGLIGH pair", vdj_b_metrics$cellsWithFullLengthChainIGLIGH
+  "Cells with Productive IGH", vdj_b_metrics$cellsWithProductiveChainIGH,
+  "Cells with Productive IGK", vdj_b_metrics$cellsWithProductiveChainIGK,
+  "Cells with Productive IGL", vdj_b_metrics$cellsWithProductiveChainIGL,
+  "Cells with Productive IGKIGH pair", vdj_b_metrics$cellsWithProductiveChainIGKIGH,
+  "Cells with Productive IGLIGH pair", vdj_b_metrics$cellsWithProductiveChainIGLIGH
 ) %>%
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
@@ -896,12 +955,21 @@ Row
 ## Only plot cluster when there are more than 150 filtered cells
 if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+    bcr_cdrSeq <- read_tsv(params$VDJ_B_report) %>%
+        select(`#barcode`, `chain1`, `chain2`)
+    bcr_cdrSeq$chain1_cdr3 <- ""
+    bcr_cdrSeq$chain2_cdr3 <- ""
+    for(i in 1:nrow(bcr_cdrSeq)){
+        bcr_cdrSeq$chain1_cdr3[i] <- unlist(strsplit(bcr_cdrSeq$chain1[i], ","))[6]
+        bcr_cdrSeq$chain2_cdr3[i] <- unlist(strsplit(bcr_cdrSeq$chain2[i], ","))[6]
+    }
     ## extract data from seuratData
     bcr_cells <- vdj_b_knee %>%
         filter(group == "cell") %>%
         pull(CB)
     bcr_data <- vdj_b_kneeData %>%
-        filter(CB %in% bcr_cells)
+        filter(CB %in% bcr_cells) %>%
+        left_join(bcr_cdrSeq, by = c("CB" = "#barcode"))
     clusterData2 <- clusterData %>% left_join(bcr_data, by = c("bc" = "CB")) %>%
         dplyr::select(bc, UMAP_1, UMAP_2, chain1_cdr3, chain2_cdr3) %>%
         dplyr::mutate(

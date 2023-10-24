@@ -5,7 +5,14 @@ process CHECK_SATURATION_VDJ {
     fair true
     publishDir "${params.outdir}/saturation/",
         mode: "${params.publish_dir_mode}",
-        enabled: params.publishSaturation as boolean
+        enabled: params.publishSaturation as boolean,
+        saveAs: { filename ->
+          if(filename=~/_VDJ/){
+            return null
+          }else{
+            return filename
+          }
+        }
 
     input:
     tuple val(meta), path(starsoloBAM)

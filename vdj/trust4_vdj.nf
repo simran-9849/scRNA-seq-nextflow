@@ -29,8 +29,8 @@ process TRUST4_VDJ {
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_report.filterDiffusion.tsv"), emit: report
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_airr.tsv"), emit: airr
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_final.out"), emit: finalOut
-    tuple val(meta), path("${meta.id}*_kneeOut.tsv"), emit: kneeOut
-    tuple val(meta), path("${meta.id}*_cellOut.tsv"), emit: cellOut
+    tuple val(meta), path("${meta.id}*.kneeOut.tsv"), emit: kneeOut
+    tuple val(meta), path("${meta.id}*.rawCellOut.tsv"), emit: cellOut
 
     script:
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
@@ -67,8 +67,8 @@ process TRUST4_VDJ {
             
             vdj_cellCalling.sh --inputBAM ${starsoloBAM_map[it]} \\
             --gexBarcode \$gex_cells \\
-            --kneeOut ${meta.id}_${it}_kneeOut.tsv \\
-            --cellOut ${meta.id}_${it}_cellOut.tsv \\
+            --kneeOut ${meta.id}_${it}.kneeOut.tsv \\
+            --cellOut ${meta.id}_${it}.rawCellOut.tsv \\
             --readIDout ${it}_readID.lst \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
@@ -106,8 +106,8 @@ process TRUST4_VDJ {
             --expectedCells ${expectedCells_map[it]} \\
             --percentile 0.95 \\
             --umi_fold 10 \\
-            --kneeOut ${meta.id}_${it}_kneeOut.tsv \\
-            --cellOut ${meta.id}_${it}_cellOut.tsv \\
+            --kneeOut ${meta.id}_${it}.kneeOut.tsv \\
+            --cellOut ${meta.id}_${it}.rawCellOut.tsv \\
             --readIDout ${it}_readID.lst \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
@@ -165,7 +165,8 @@ process VDJ_METRICS {
     tuple val(meta), val(starsoloSummary_featureTypes), path(starsoloSummary)
 
     output:
-    tuple val(meta), path("${meta.id}_*.vdj_metrics.json"), emit: metricsJSON
+    tuple val(meta), path("${meta.id}_*.vdj_cellOut.tsv"),       emit: cellOut
+    tuple val(meta), path("${meta.id}_*.vdj_metrics.json"),  emit: metricsJSON
     tuple val(meta), path("${meta.id}_*.cloneType_out.tsv"), emit: cloneType
 
     script:
@@ -199,6 +200,7 @@ process VDJ_METRICS {
                           ${kneeOut_map[it]} \\
                           ${it} \\
                           ${starsoloSummary_map[it]} \\
+                          ${meta.id}_${it}.vdj_cellOut.tsv \\
                           ${meta.id}_${it}.vdj_metrics.json \\
                           ${meta.id}_${it}.cloneType_out.tsv
         """.stripIndent()

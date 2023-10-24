@@ -402,14 +402,6 @@ workflow vdj_process {
     }
     .groupTuple(by:[0])
     .set{ ch_filteredDir_grouped }
-
-    ch_starsolo_filteredDir
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ ch_filteredDir_grouped }
     
     TRUST4_VDJ(
         ch_cDNAread_grouped,
@@ -622,8 +614,29 @@ workflow vdj_report {
     .groupTuple(by:[0])
     .set{ saturation_json_collapsed }
 
-    VDJ_METRICS.out.metricsJSON.view()
-
+    VDJ_METRICS.out.cellOut
+    .map {
+        meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set { trust4_cells_collapsed }
+    //VDJ_METRICS.out.metricsJSON.view()
+    
     VDJ_METRICS.out.metricsJSON
     .map {
         meta, file ->
@@ -645,31 +658,7 @@ workflow vdj_report {
             .plus(0, [id:meta.id])
     }
     .set { trust4_metrics_collapsed }
-    trust4_metrics_collapsed.view()
-
-    //VDJ_METRICS.out.kneeData.view()
-    //VDJ_METRICS.out.kneeData
-    //.map {
-    //    meta, file ->
-    //        def tmp = []
-    //        if(file instanceof List){
-    //            tmp = file
-    //        }else{
-    //            tmp = [ file ]
-    //        }
-    //        tmp.findAll { it =~ /VDJ-[BT]/ }
-    //        .collect {
-    //            if(it =~ /VDJ-T/){
-    //                ["VDJ-T", it]
-    //            }else if(it =~ /VDJ-B/){
-    //                ["VDJ-B", it]
-    //            }
-    //        }
-    //        .transpose()
-    //        .plus(0, [id:meta.id])
-    //}
-    //.set{ trust4_kneeData_collapsed }
-    //trust4_kneeData_collapsed.view()
+    //trust4_metrics_collapsed.view()
 
     //VDJ_METRICS.out.cloneType.view()
     VDJ_METRICS.out.cloneType
@@ -698,15 +687,19 @@ workflow vdj_report {
     GET_VERSIONS_VDJ()
 
     //starsolo_summary_collapsed.view()
-    //REPORT_VDJ(
-    //    starsolo_summary_collapsed,
-    //    starsolo_umi_collapsed,
-    //    starsolo_filteredDir_collapsed,
-    //    qualimap_outDir_collapsed,
-    //    saturation_json_collapsed,
-    //    trust4_metrics_collapsed,
-    //    trust4_kneeData_collapsed,
-    //    trust4_cloneType_collapsed,
-    //    GET_VERSIONS_VDJ.out.versions
-    //)
+    REPORT_VDJ(
+        starsolo_summary_collapsed,
+        starsolo_umi_collapsed,
+        starsolo_filteredDir_collapsed,
+        qualimap_outDir_collapsed,
+        saturation_json_collapsed,
+        vdj_report,
+        vdj_airr,
+        vdj_kneeOut,
+        vdj_finalOut,
+        trust4_cells_collapsed,
+        trust4_metrics_collapsed,
+        trust4_cloneType_collapsed,
+        GET_VERSIONS_VDJ.out.versions
+    )
 }

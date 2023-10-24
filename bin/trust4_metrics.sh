@@ -19,6 +19,7 @@ usage () {
 	                        sampleID_VDJ-T.kneeData.tsv \\
 	                        VDJ-T \\
 	                        sampleID_VDJ-T.Summary.unique.csv \\
+	                        sampleID_VDJ-T.cellOut.tsv \\
 	                        sampleID_VDJ-T.vdj_metrics.json \\
 	                        sampleID_VDJ-T.cloneType_out.tsv
 	EOF
@@ -36,8 +37,9 @@ trust4_toassemble_bc=$3
 kneeInput=$4
 cellType=$5
 starsolo_summary=$6
-metricsOut=$7
-cloneTypeResult=$8
+cellOut=$7
+metricsOut=$8
+cloneTypeResult=$9
 
 sampleID=${trust4_report%%_VDJ*}
 
@@ -56,16 +58,20 @@ fi
 ## cells were defined as chain1 (IGH or TRB) and chain2 (IGK/L or TRA) has 3 UMI in total
 cellBC=$(mktemp -p ./)
 awk -v cellName=$cellName '
+    BEGIN{
+        print "CB\tChain1_UMI\tChain2_UMI"
+    }
     {
         split($3, chain1, ",");
         split($4, chain2, ",");
         chain1_umi=chain1[7];
         chain2_umi=chain2[7];
         if($1!="-" && $2==cellName && chain1_umi+chain2_umi>=3){
-            print $1
+            print $1"\t"chain1_umi"\t"chain2_umi
         }
     }
-    ' $trust4_report > $cellBC
+    ' $trust4_report > $cellOut
+awk 'NR>1{print $1}' $cellOut > $cellBC
 cellNum=$(wc -l $cellBC | awk '{print $1}')
 
 ## calculate UMI in cells and background barcodes
