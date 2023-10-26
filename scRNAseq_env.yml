@@ -6,7 +6,7 @@ channels:
 dependencies:
   - plotly
   - samtools==1.15
-  - star==2.7.10a
+  - star==2.7.11a
   - cutadapt>=3.5
   - fastx_toolkit
   - fastqc>=0.11.9
@@ -30,4 +30,6 @@ dependencies:
   - qualimap
   - r-seuratdisk
   - r-rhpcblasctl
-  - trust4
+  - trust4>=1.0.12
+  - r-seqinr
+  - bioconductor-complexheatmap
