@@ -163,7 +163,7 @@ totalMappedReads=$(awk -F"," '$1=="Reads Mapped to Genome: Unique+Multiple"{prin
 ## Reads mapped to genome (U)
 uniquelyMappedReads=$(awk -F"," '$1=="Reads Mapped to Genome: Unique"{print $2}' $starsolo_summary)
 
-pairingCellNum=$(awk 'BEGIN{t=0}NR>1 && $1!~/*/{t+=$2}END{print t}' $cloneTypeResult)
+pairingCellNum=$(awk 'BEGIN{t=0}NR>1 && $1!~/*/{t+=$4}END{print t}' $cloneTypeResult)
 pairingRate=$(awk -v pairingCellNum=$pairingCellNum -v cellNum=$cellNum 'BEGIN{print pairingCellNum/cellNum}')
 
 countProductiveCells(){
@@ -175,7 +175,7 @@ countProductiveCells(){
     ARGIND==1{
         cells[$1]
     }
-    AGRIND==2&&FNR>1{
+    ARGIND==2&&FNR>1{
         productive[$1]=$4
     }
     ARGIND==3{
