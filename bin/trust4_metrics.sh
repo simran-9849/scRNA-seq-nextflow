@@ -145,23 +145,35 @@ awk '
     awk -v cellNum=$cellNum 'BEGIN{print "cloneType\tHchain_VDJ\tLchain_VDJ\tCellCount\tFrequency"}{print $2"\t"$3"\t"$4"\t"$1"\t"$1/cellNum}' > $cloneTypeResult
 
 ## Extract metrics from starsolo summary output
+extractSummaryTerm(){
+    local summaryFile=$1
+    local term=$2
+    local tmpCount=$(grep "$term" $summaryFile | wc -l)
+    local outValue="NoInfor"
+    if [[ $tmpCount -gt 0 ]]
+    then
+        outValue=$(awk -F"," -v term="$term" '$1==term{print $2}' $summaryFile)
+    fi
+    echo $outValue
+}
+
 ## Number of Reads
-totalRawReads=$(awk -F"," '$1=="Number of Reads"{print $2}' $starsolo_summary)
+totalRawReads=$(extractSummaryTerm $starsolo_summary "Number of Reads")
 ## Reads With Valid Barcodes
-validBCreads=$(awk -F"," '$1=="Reads With Valid Barcodes"{print $2}' $starsolo_summary)
+validBCreads=$(extractSummaryTerm $starsolo_summary "Reads With Valid Barcodes")
 ## Sequencing Saturation
-saturation=$(awk -F"," '$1=="Sequencing Saturation"{print $2}' $starsolo_summary)
+saturation=$(extractSummaryTerm $starsolo_summary "Sequencing Saturation")
 ## Q30 Bases in CB+UMI
-q30InCBandUMI=$(awk -F"," '$1=="Q30 Bases in CB+UMI"{print $2}' $starsolo_summary)
+q30InCBandUMI=$(extractSummaryTerm $starsolo_summary "Q30 Bases in CB+UMI")
 ## Q30 Bases in RNA read
-q30InRNA=$(awk -F"," '$1=="Q30 Bases in RNA read"{print $2}' $starsolo_summary)
+q30InRNA=$(extractSummaryTerm $starsolo_summary "Q30 Bases in RNA read")
+## Reads mapped to genome (U+M)
+totalMappedReads=$(extractSummaryTerm $starsolo_summary "Reads Mapped to Genome: Unique+Multiple")
+## Reads mapped to genome (U)
+uniquelyMappedReads=$(extractSummaryTerm $starsolo_summary "Reads Mapped to Genome: Unique")
+
 ## Total cloneTypes detected
 totalCloneTypes=$(wc -l $cloneTypeResult| awk '{print $1-1}')
-
-## Reads mapped to genome (U+M)
-totalMappedReads=$(awk -F"," '$1=="Reads Mapped to Genome: Unique+Multiple"{print $2}' $starsolo_summary)
-## Reads mapped to genome (U)
-uniquelyMappedReads=$(awk -F"," '$1=="Reads Mapped to Genome: Unique"{print $2}' $starsolo_summary)
 
 pairingCellNum=$(awk 'BEGIN{t=0}NR>1 && $1!~/*/{t+=$4}END{print t}' $cloneTypeResult)
 pairingRate=$(awk -v pairingCellNum=$pairingCellNum -v cellNum=$cellNum 'BEGIN{print pairingCellNum/cellNum}')
