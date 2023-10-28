@@ -13,6 +13,7 @@ process GET_VERSIONS_VDJ {
     script:
     def includeIntron = params.soloFeatures == "Gene" ? "FALSE" : "TRUE"
     def includeMultiReads = params.soloMultiMappers == "Unique" ? "FALSE" : "TRUE"
+    def cDNAreadOnly = params.trust4_cDNAread_only ? "TRUE" : "FALSE"
     """
     ## fastqc version
     fastqc_version=\$(fastqc --version | awk '{print \$2}')
@@ -31,7 +32,9 @@ process GET_VERSIONS_VDJ {
 	  "pipeline_version": "$workflow.manifest.version",
 	  "referenceDir": "${params.genomeDir}",
 	  "referenceGTF": "${params.genomeGTF}",
+      "whitelist": "${params.whitelist}",
 	  "STAR_version": "\$star_version",
+      "assembleWithcDNAreadOnly": "${cDNAreadOnly}",
       "soloCBmatchWLtype": "${params.soloCBmatchWLtype}",
       "soloUMIfiltering": "${params.soloUMIfiltering}",
       "soloUMIdedup": "${params.soloUMIdedup}",
