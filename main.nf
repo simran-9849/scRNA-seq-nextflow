@@ -303,7 +303,7 @@ workflow vdj_process {
             ch_genomeGTF,
             ch_barcodelist.toList(),
         )
-        ch_genome_bam           = STARSOLO_COMPLEX_VDJ.out.bam
+        ch_genome_bam           = STARSOLO_COMPLEX_VDJ.out.bam_sorted
         ch_genome_bam_index     = STARSOLO_COMPLEX_VDJ.out.bai
         ch_starsolo_filteredDir = STARSOLO_COMPLEX_VDJ.out.filteredDir
         ch_starsolo_summary     = STARSOLO_COMPLEX_VDJ.out.summary_unique
@@ -317,7 +317,7 @@ workflow vdj_process {
             ch_genomeGTF,
             ch_whitelist,
         )
-        ch_genome_bam           = STARSOLO_VDJ.out.bam
+        ch_genome_bam           = STARSOLO_VDJ.out.bam_sorted
         ch_genome_bam_index     = STARSOLO_VDJ.out.bai
         ch_starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
         ch_starsolo_summary     = STARSOLO_VDJ.out.summary_unique
@@ -402,7 +402,7 @@ workflow vdj_process {
     }
     .groupTuple(by:[0])
     .set{ ch_filteredDir_grouped }
-    
+
     TRUST4_VDJ(
         ch_cDNAread_grouped,
         ch_bcRead_grouped,
@@ -587,7 +587,7 @@ workflow vdj_report {
             .plus(0, [id:meta.id])
     }
     .set{ vdj_kneeOut }
-    
+
     VDJ_METRICS(
         vdj_report,
         vdj_airr,
@@ -686,7 +686,6 @@ workflow vdj_report {
     
     GET_VERSIONS_VDJ()
 
-    //starsolo_summary_collapsed.view()
     REPORT_VDJ(
         starsolo_summary_collapsed,
         starsolo_umi_collapsed,

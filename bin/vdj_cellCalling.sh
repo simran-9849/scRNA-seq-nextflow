@@ -15,6 +15,8 @@ expectedCells=3000
 percentile=0.95
 umi_fold=10
 threads=10
+CBtag="CB" ## tag used to extract CB from BAM
+UMItag="UB" ## tag used to extract UMI from BAM, if UMItag="None", then reads will be used directly
 kneeDataOut="kneeOut.tsv"
 cellListOut="cellOut.tsv"
 readIDList="readID.lst"
@@ -30,6 +32,8 @@ usage(){
 	  --expectedCells 3000 \\
 	  --percentile 0.95 \\
 	  --umi_fold 10 \\
+	  --CBtag CB \\
+	  --UMItag UB/None \\
 	  --kneeOut kneeOut.tsv \\
 	  --cellOut cellOut.tsv \\
 	  --readIDout readID.lst \\
@@ -99,6 +103,14 @@ do
             threads=$2
             shift 2
             ;;
+        "--CBtag")
+            CBtag=$2
+            shift 2
+            ;;
+        "--UMItag")
+            UMItag=$2
+            shift 2
+            ;;
         *)
             echo "$1 is not a valid argument"
             exit 1
@@ -109,53 +121,30 @@ done
 if [[  $gexBarcode == "None" ]]
 then
     ## calculate cutoff rank
-    umi_cutoff_rank=$(awk -v expectedCells=$expectedCells -v percentil=$percentile 'BEGIN{printf "%d\n", expectedCells*(1-percentile)}')
+    umi_cutoff_rank=$(awk -v expectedCells=$expectedCells -v percentile=$percentile 'BEGIN{printf "%d\n", expectedCells*(1-percentile)}')
+    ##echo "Using umi_cutoff_rank: $umi_cutoff_rank"
 
     CB_reads=$(mktemp -p ./)
     samtools view -@ $threads $inputBAM |
-        awk '
-    {
-        for(i=12;i<=NF;i++){
-            if($i~/CB:Z:/){
-                split($i, tmp, ":");
-                CB=tmp[3]
-            }
-            if($i~/UB:Z:/){
-                split($i, tmp, ":");
-                UB=tmp[3]
-            }
+        awk -v CBtag=$CBtag -v UMItag=$UMItag '
+        BEGIN{
+            CBpattern=CBtag":Z:"
+            UMIpattern=UMItag":Z:"
         }
-        if(CB!="-" && UB!="-"){
-            print CB"\t"UB"\t"$1
-        }
-    }
-    ' |
-        sort -u -T ./ --parallel $threads |
-        sort -k 1,1 -k 2,2 -T ./ --parallel $threads > $CB_reads
-
-    cut -f 1,2 $CB_reads |
-        sort -u -T ./ --parallel $threads |
-        sort -k1,1 -T ./ --parallel $threads |
-        bedtools groupby -g 1 -c 2 -o count |
-        sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
-
-    awk -v umi_cutoff_rank=$umi_cutoff_rank 'NR<=umi_cutoff_rank{print $1}' $kneeDataOut > $cellListOut
-else
-    CB_reads=$(mktemp -p ./)
-    samtools view -@ $threads -D CB:$gexBarcode $inputBAM |
-        awk '
         {
             for(i=12;i<=NF;i++){
-                if($i~/CB:Z:/){
+                if($i ~ CBpattern){
                     split($i, tmp, ":");
                     CB=tmp[3]
                 }
-                if($i~/UB:Z:/){
+                if($i ~ UMIpattern){
                     split($i, tmp, ":");
                     UB=tmp[3]
                 }
             }
-            if(CB!="-" && UB!="-"){
+            if(UMItag=="None" && CB!="-"){
+                print CB"\t"$1
+            }else if(CB!="-" && UB!="-" && UMItag!="None"){
                 print CB"\t"UB"\t"$1
             }
         }
@@ -163,12 +152,67 @@ else
         sort -u -T ./ --parallel $threads |
         sort -k 1,1 -k 2,2 -T ./ --parallel $threads > $CB_reads
 
-    cut -f 1,2 $CB_reads |
+    if [[ $UMItag=="None" ]]
+    then
+        bedtools groupby -g 1 -c 2 -o count -i $CB_reads |
+            sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
+    else
+        cut -f 1,2 $CB_reads |
+            sort -u -T ./ --parallel $threads |
+            sort -k1,1 -T ./ --parallel $threads |
+            bedtools groupby -g 1 -c 2 -o count |
+            sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
+    fi
+    awk -v umi_cutoff_rank=$umi_cutoff_rank -v umi_fold=$umi_fold '
+    ARGIND==1 && FNR==umi_cutoff_rank{
+        umi_cutoff=$2/umi_fold
+    }
+    ARGIND==2{
+        if($2 >= umi_cutoff){
+            print $1
+        }
+    }
+    ' $kneeDataOut $kneeDataOut > $cellListOut
+else
+    CB_reads=$(mktemp -p ./)
+    samtools view -@ $threads -D ${CBtag}:${gexBarcode} $inputBAM |
+        awk '
+        BEGIN{
+            CBpattern=CBtag":Z:"
+            UMIpattern=UMItag":Z:"
+        }
+        {
+            for(i=12;i<=NF;i++){
+                if($i ~ CBpattern){
+                    split($i, tmp, ":");
+                    CB=tmp[3]
+                }
+                if($i ~ UMIpattern){
+                    split($i, tmp, ":");
+                    UB=tmp[3]
+                }
+            }
+            if(UMItag=="None" && CB!="-"){
+                print CB"\t"$1
+            }else if(CB!="-" && UB!="-" && UMItag!="None"){
+                print CB"\t"UB"\t"$1
+            }
+        }
+        ' |
         sort -u -T ./ --parallel $threads |
-        sort -k1,1 -T ./ --parallel $threads |
-        bedtools groupby -g 1 -c 2 -o count |
-        sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
+        sort -k 1,1 -k 2,2 -T ./ --parallel $threads > $CB_reads
 
+    if [[ $UMItag=="None" ]]
+    then
+        bedtools groupby -g 1 -c 2 -o count -i $CB_reads |
+            sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
+    else
+        cut -f 1,2 $CB_reads |
+            sort -u -T ./ --parallel $threads |
+            sort -k1,1 -T ./ --parallel $threads |
+            bedtools groupby -g 1 -c 2 -o count |
+            sort -k 2,2rn -T ./ --parallel $threads > $kneeDataOut
+    fi
     cat $gexBarcode > $cellListOut
 fi
 
@@ -194,8 +238,15 @@ awk '
     }
     ' $cellListOut $CB_reads > $readID_down
 
-awk '{print $3}' $readID_down > $readIDList
-awk '{print ">"$3"\n"$1}' $readID_down > $barcode_fasta
-awk '{print ">"$3"\n"$2}' $readID_down > $umi_fasta
+if [[ $UMItag != "None" ]]
+then
+    awk '{print $3}' $readID_down > $readIDList
+    awk '{print ">"$3"\n"$1}' $readID_down > $barcode_fasta
+    awk '{print ">"$3"\n"$2}' $readID_down > $umi_fasta
+else
+    awk '{print $2}' $readID_down > $readIDList
+    awk '{print ">"$2"\n"$1}' $readID_down > $barcode_fasta
+    touch $umi_fasta
+fi
 
 rm $CB_reads $readID_down

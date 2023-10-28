@@ -25,10 +25,10 @@ process TRUST4_VDJ {
     path(trust4_vdj_imgt_fasta)
 
     output:
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_toassemble_bc.fa"), emit: toassemble_bc
+    tuple val(meta), path("TRUST4_OUT/${meta.id}*_toassemble_bc.fa"),                   emit: toassemble_bc
     tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_report.filterDiffusion.tsv"), emit: report
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_airr.tsv"), emit: airr
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_final.out"), emit: finalOut
+    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_airr.tsv"),                   emit: airr
+    tuple val(meta), path("TRUST4_OUT/${meta.id}*_final.out"),                          emit: finalOut
     tuple val(meta), path("${meta.id}*.kneeOut.tsv"), emit: kneeOut
     tuple val(meta), path("${meta.id}*.rawCellOut.tsv"), emit: cellOut
 
@@ -36,13 +36,17 @@ process TRUST4_VDJ {
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
     def associate_feature_type = { feature_types, data_list ->
         def map = [:]
-        if(feature_types.size() > 1){
-            map = [feature_types, data_list].transpose().collectEntries()
-        }else if(feature_types.size() == 1){
-            map = [feature_types, [data_list]].transpose().collectEntries()
-        }//else{
-            // return empty, them program will stop and throw the warnning
-            //def map = [:]
+        def dList = []
+        if(feature_types.size() == 1 && data_list.getClass() == nextflow.processor.TaskPath){
+            dList = [data_list]
+        }else{
+            dList = data_list
+        }
+        map = [feature_types, dList].transpose().collectEntries()
+        //if(feature_types.size() > 1){
+        //  map = [feature_types, data_list].transpose().collectEntries()
+        //}else if(feature_types.size() == 1){
+        //    map = [feature_types, [data_list]].transpose().collectEntries()
         //}
         return map
     }
@@ -53,7 +57,11 @@ process TRUST4_VDJ {
     def filteredDir_map   = associate_feature_type(filteredDir_featureTypes,  filteredDir)
     // extract expectedCells from BAM input channel                           
     def expectedCells_map = associate_feature_type(starsoloBAM_featureTypes,  starsoloBAM_expectedCells)
-
+    
+    def CBtag = params.whitelist == "None" ? "CR" : "CB"
+    def UMItag = params.soloType == "CB_samTagOut" ? "None" : "UB"
+    def use_UMI = UMItag == "None" ? "false" : "true"
+    def use_cDNAread_only = params.trust4_cDNAread_only ? "true" : "false"
     def scriptString = []
     def vdj_featureTypes = starsoloBAM_featureTypes.collect()
     vdj_featureTypes.remove("GEX")
@@ -72,21 +80,37 @@ process TRUST4_VDJ {
             --readIDout ${it}_readID.lst \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
-            --threads ${task.cpus}
+            --threads ${task.cpus} \\
+            --CBtag ${CBtag} \\
+            --UMItag ${UMItag}
             
             ## extract trust4 input reads
             seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
             seqtk subseq ${cDNAread_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R2.fq.gz
-            
+
+            use_cDNAread_only=${use_cDNAread_only}
+            use_UMI=${use_UMI}
+            if [[ \$use_UMI == true ]]
+            then
+                barcode_umi_opt="--barcode ${it}_barcode.fa --UMI ${it}_umi.fa"
+            else
+                barcode_umi_opt="--barcode ${it}_barcode.fa"
+            fi
+
+            if [[ \$use_cDNAread_only == false ]]
+            then
+                trust4_input_opt="-1 trust4_${it}_input.R1.fq.gz -2 trust4_${it}_input.R2.fq.gz"
+            else
+                trust4_input_opt="-u trust4_${it}_input.R2.fq.gz"
+            fi
+
             run-trust4 -f ${trust4_vdj_refGenome_fasta} \\
             --ref ${trust4_vdj_imgt_fasta} \\
             -o ${meta.id}_${it} \\
             --od TRUST4_OUT \\
-            -1 trust4_${it}_input.R1.fq.gz \\
-            -2 trust4_${it}_input.R2.fq.gz \\
-            --barcode ${it}_barcode.fa \\
-            --UMI ${it}_umi.fa \\
-            --readFormat r1:59:-1 \\
+            \$trust4_input_opt \\
+            \$barcode_umi_opt \\
+            --readFormat ${params.trust4_readFormat} \\
             --outputReadAssignment \\
             -t ${task.cpus}
 
@@ -111,21 +135,37 @@ process TRUST4_VDJ {
             --readIDout ${it}_readID.lst \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
-            --threads ${task.cpus}
+            --threads ${task.cpus} \\
+            --CBtag ${CBtag} \\
+            --UMItag ${UMItag}
             
             ## extract trust4 input reads
             seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
             seqtk subseq ${cDNAread_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R2.fq.gz
-            
+
+            use_cDNAread_only=${use_cDNAread_only}
+            use_UMI=${use_UMI}
+            if [[ \$use_UMI == true ]]
+            then
+                barcode_umi_opt="--barcode ${it}_barcode.fa --UMI ${it}_umi.fa"
+            else
+                barcode_umi_opt="--barcode ${it}_barcode.fa"
+            fi
+
+            if [[ \$use_cDNAread_only == false ]]
+            then
+                trust4_input_opt="-1 trust4_${it}_input.R1.fq.gz -2 trust4_${it}_input.R2.fq.gz"
+            else
+                trust4_input_opt="-u trust4_${it}_input.R2.fq.gz"
+            fi
+
             run-trust4 -f ${trust4_vdj_refGenome_fasta} \\
             --ref ${trust4_vdj_imgt_fasta} \\
             -o ${meta.id}_${it} \\
             --od TRUST4_OUT \\
-            -1 trust4_${it}_input.R1.fq.gz \\
-            -2 trust4_${it}_input.R2.fq.gz \\
-            --barcode ${it}_barcode.fa \\
-            --UMI ${it}_umi.fa \\
-            --readFormat r1:59:-1 \\
+            \$trust4_input_opt \\
+            \$barcode_umi_opt \\
+            --readFormat ${params.trust4_readFormat} \\
             --outputReadAssignment \\
             -t ${task.cpus}
 
@@ -136,7 +176,7 @@ process TRUST4_VDJ {
             )
         }
     }
-    scriptString.join("\n")
+    scriptString.reverse().join("\n")
 }
 
 process VDJ_METRICS {
@@ -173,11 +213,18 @@ process VDJ_METRICS {
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
     def associate_feature_type = { feature_types, data_list ->
         def map = [:]
-        if(feature_types.size() > 1){
-            map = [feature_types, data_list].transpose().collectEntries()
-        }else if(feature_types.size() == 1){
-            map = [feature_types, [data_list]].transpose().collectEntries()
-        }//else{
+        def dList = []
+        if(feature_types.size() == 1 && data_list.getClass() == nextflow.processor.TaskPath){
+            dList = [data_list]
+        }else{
+            dList = data_list
+        }
+        map = [feature_types, dList].transpose().collectEntries()
+        //if(feature_types.size() > 1){
+        //    map = [feature_types, data_list].transpose().collectEntries()
+        //}else if(feature_types.size() == 1){
+        //    map = [feature_types, [data_list]].transpose().collectEntries()
+        //}//else{
             // return empty, the program will stop and throw the warnning
             //def map = [:]
         //}
@@ -206,5 +253,5 @@ process VDJ_METRICS {
         """.stripIndent()
         )
     }
-    scriptString.join("\n")
+    scriptString.reverse().join("\n")
 }

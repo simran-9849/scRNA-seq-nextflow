@@ -28,11 +28,11 @@ process STARSOLO_VDJ {
     tuple val(meta), path('*Log.final.out')                                                 , emit: log_final
     tuple val(meta), path('*Log.out')                                                       , emit: log_out
     tuple val(meta), path('*Log.progress.out')                                              , emit: log_progress
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_filtered")               , emit: filteredDir
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_raw")                    , emit: rawDir
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.Summary.unique.csv")            , emit: summary_unique
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt")   , emit: UMI_file_unique
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.CellReads.stats")               , emit: cellReads_stats
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_filtered")               , emit: filteredDir,     optional:true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_raw")                    , emit: rawDir,          optional:true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.Summary.unique.csv")            , emit: summary_unique,  optional:true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt")   , emit: UMI_file_unique, optional:true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.CellReads.stats")               , emit: cellReads_stats, optional:true
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
@@ -47,7 +47,16 @@ process STARSOLO_VDJ {
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
 
+    def bamOutTags = ""
+    if(params.soloType == "CB_samTagOut"){
+        bamOutTags = "NH HI nM AS CR UR CB GX GN gx gn sS sQ sM"
+    }else{
+        bamOutTags = "NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM"
+    }
+    def CBtag = params.whitelist == "None" ? "CR" : "CB"
 
+    def scriptString = []
+    scriptString.push(
     """
     STAR --runThreadN $task.cpus \\
     --genomeDir $index \\
@@ -73,23 +82,51 @@ process STARSOLO_VDJ {
     --soloFeatures $params.soloFeatures \\
     --soloCellFilter $params.soloCellFilter \\
     --soloCellReadStats Standard \\
-    --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
-    --outSAMunmapped Within KeepPairs \\
-    --outSAMtype BAM SortedByCoordinate \\
+    --outSAMattributes ${bamOutTags} \\
+    --outSAMunmapped ${params.outSAMunmapped} \\
+    --outSAMtype ${params.outSAMtype} \\
     --outBAMsortingBinsN 300
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
+    """.stripIndent()
+    )
 
-    pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
-
-    ## Rename outputs to prevent file name collision
-    cp ${prefix}.Solo.out/*/Summary.csv ${meta.id}_${meta.feature_types}.Summary.unique.csv
-    cp ${prefix}.Solo.out/*/UMIperCellSorted.txt ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
-    cp ${prefix}.Solo.out/Gene*/CellReads.stats ${meta.id}_${meta.feature_types}.CellReads.stats
-    cp -r ${prefix}.Solo.out/*/filtered ${meta.id}_${meta.feature_types}.matrix_filtered
-    cp -r ${prefix}.Solo.out/*/raw ${meta.id}_${meta.feature_types}.matrix_raw
-    """
+    if(meta.feature_types == "GEX"){
+        scriptString.push(
+        """
+        pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
+        pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
+        
+        ## Rename outputs to prevent file name collision
+        cp ${prefix}.Solo.out/*/Summary.csv ${meta.id}_${meta.feature_types}.Summary.unique.csv
+        cp ${prefix}.Solo.out/*/UMIperCellSorted.txt ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+        cp ${prefix}.Solo.out/Gene*/CellReads.stats ${meta.id}_${meta.feature_types}.CellReads.stats
+        cp -r ${prefix}.Solo.out/*/filtered ${meta.id}_${meta.feature_types}.matrix_filtered
+        cp -r ${prefix}.Solo.out/*/raw ${meta.id}_${meta.feature_types}.matrix_raw
+        """.stripIndent()
+        )
+    }else{
+        scriptString.push(
+        """
+        mkdir ${meta.id}_${meta.feature_types}.matrix_filtered
+        summaryFile=\$(find ./ -name "Summary*.csv" | wc -l | awk '{print \$1}')
+        if [[ \$summaryFile == 0 ]]
+        then
+            ## Create fake summary csv file and UMI file
+            touch ${meta.id}_${meta.feature_types}.Summary.unique.csv
+            touch ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+        
+            ## calculate total reads and valid barcodes
+            totalReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | wc -l)
+            validBCReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | awk '{cb=\$0; gsub(/.*${CBtag}:Z:/, "", cb); gsub(/\\t.*\$/, "", cb); print \$1"\\t"cb}' | awk '\$2!="-"' | wc -l)
+            validBCRatio=\$(awk -v x=\$validBCReads -v y=\$totalReads 'BEGIN{print x/y}')
+            echo "Number of Reads,\$totalReads" >>  ${meta.id}_${meta.feature_types}.Summary.unique.csv
+            echo "Reads With Valid Barcodes,\$validBCRatio" >>  ${meta.id}_${meta.feature_types}.Summary.unique.csv
+        fi
+        """.stripIndent()
+        )
+    }
+    scriptString.reverse().join("\n")
 }
 
 process STARSOLO_MULTIPLE_VDJ {
@@ -225,7 +262,15 @@ process STARSOLO_COMPLEX_VDJ {
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
 
-
+    def bamOutTags = ""
+    if(params.soloType == "CB_samTagOut"){
+        bamOutTags = "NH HI nM AS CR UR CB GX GN gx gn sS sQ sM"
+    }else{
+        bamOutTags = "NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM"
+    }
+    
+    def scriptString = []
+    scriptString.push(
     """
     STAR --runThreadN $task.cpus \\
     --genomeDir $index \\
@@ -256,15 +301,43 @@ process STARSOLO_COMPLEX_VDJ {
     --outBAMsortingBinsN 300
 
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
+    """.stripIndent()
+    )
 
-    pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
-
-    ## Rename outputs to prevent file name collision
-    cp ${prefix}.Solo.out/*/Summary.csv ${meta.id}_${meta.feature_types}.Summary.unique.csv
-    cp ${prefix}.Solo.out/*/UMIperCellSorted.txt ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
-    cp ${prefix}.Solo.out/Gene*/CellReads.stats ${meta.id}_${meta.feature_types}.CellReads.stats
-    cp -r ${prefix}.Solo.out/*/filtered ${meta.id}_${meta.feature_types}.matrix_filtered
-    cp -r ${prefix}.Solo.out/*/raw ${meta.id}_${meta.feature_types}.matrix_raw
-    """
+    if(meta.feature_types == "GEX"){
+        scriptString.push(
+        """
+        pigz -p $task.cpus ${prefix}.Solo.out/*/raw/*
+        pigz -p $task.cpus ${prefix}.Solo.out/*/filtered/*
+        
+        ## Rename outputs to prevent file name collision
+        cp ${prefix}.Solo.out/*/Summary.csv ${meta.id}_${meta.feature_types}.Summary.unique.csv
+        cp ${prefix}.Solo.out/*/UMIperCellSorted.txt ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+        cp ${prefix}.Solo.out/Gene*/CellReads.stats ${meta.id}_${meta.feature_types}.CellReads.stats
+        cp -r ${prefix}.Solo.out/*/filtered ${meta.id}_${meta.feature_types}.matrix_filtered
+        cp -r ${prefix}.Solo.out/*/raw ${meta.id}_${meta.feature_types}.matrix_raw
+        """.stripIndent()
+        )
+    }else{
+        scriptString.push(
+        """
+        mkdir ${meta.id}_${meta.feature_types}.matrix_filtered
+        summaryFile=\$(find ./ -name "Summary*.csv" | wc -l | awk '{print \$1}')
+        if [[ \$summaryFile == 0 ]]
+        then
+            ## Create fake summary csv file and UMI file
+            touch ${meta.id}_${meta.feature_types}.Summary.unique.csv
+            touch ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+        
+            ## calculate total reads and valid barcodes
+            totalReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | wc -l)
+            validBCReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | awk '{cb=\$0; gsub(/.*${CBtag}:Z:/, "", cb); gsub(/\\t.*\$/, "", cb); print \$1"\\t"cb}' | awk '\$2!="-"' | wc -l)
+            validBCRatio=\$(awk -v x=\$validBCReads -v y=\$totalReads 'BEGIN{print x/y}')
+            echo "Number of Reads,\$totalReads" >>  ${meta.id}_${meta.feature_types}.Summary.unique.csv
+            echo "Reads With Valid Barcodes,\$validBCRatio" >>  ${meta.id}_${meta.feature_types}.Summary.unique.csv
+        fi
+        """.stripIndent()
+        )
+    }
+    scriptString.reverse().join("\n")
 }

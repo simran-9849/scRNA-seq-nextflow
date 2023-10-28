@@ -13,7 +13,7 @@ process QUALIMAP_VDJ {
 
     output:
     tuple val(meta), path("${prefix}"), emit: results
-
+    
     script:
     prefix         = "${meta.id}_${meta.feature_types}"
     def paired_end = meta.single_end ? '' : '-pe'

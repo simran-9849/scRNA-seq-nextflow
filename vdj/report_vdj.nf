@@ -34,11 +34,18 @@ process REPORT_VDJ {
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
     def associate_feature_type = { feature_types, data_list ->
         def map = [:]
-        if(feature_types.size() > 1){
-            map = [feature_types, data_list].transpose().collectEntries()
-        }else if(feature_types.size() == 1){
-            map = [feature_types, [data_list]].transpose().collectEntries()
-        }//else{
+        dList = []
+        if(feature_types.size() == 1 && data_list.getClass() == nextflow.processor.TaskPath){
+            dList = [data_list]
+        }else{
+            dList = data_list
+        }
+        map = [feature_types, dList].transpose().collectEntries()
+        //if(feature_types.size() > 1){
+        //map = [feature_types, data_list].transpose().collectEntries()
+        //}else if(feature_types.size() == 1){
+        //    map = [feature_types, [data_list]].transpose().collectEntries()
+        //}//else{
             // return empty, them program will stop and throw the warnning
             //def map = [:]
         //}
