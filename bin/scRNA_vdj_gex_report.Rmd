@@ -1111,8 +1111,8 @@ vdj_t_tbl <- tribble(
   "Fraction of Reads Used in Assembly", fractionAssembled,
   "Mean VDJ Reads per Cell", vdj_t_metrics$meanVDJReadsPerCell,
   "Median VDJ Reads per Cell", vdj_t_metrics$medianVDJReadsPerCell,
-  "Mean UMIs per Cell", vdj_t_metrics$meanUMIsPerCell,
-  "Median UMIs per Cell", vdj_t_metrics$medianUMIsPerCell,
+  "Mean Total UMIs per Cell", vdj_t_metrics$meanTotalUMIsPerCell,
+  "Median Total UMIs per Cell", vdj_t_metrics$medianTotalUMIsPerCell,
   "Pairing Rate", vdj_t_metrics$pairingRate,
   "Total Clone Types Detected", vdj_t_metrics$totalCloneTypes
 ) %>%
@@ -1122,8 +1122,8 @@ vdj_t_tbl <- tribble(
                          
 ## Rename UMI terms
 if(!withUMI){
-    vdj_t_tbl$term[which(vdj_t_tbl$term=="Mean UMIs per Cell")] <- "Mean Reads per Cell"
-    vdj_t_tbl$term[which(vdj_t_tbl$term=="Median UMIs per Cell")] <- "Median Reads per Cell"
+    vdj_t_tbl$term[which(vdj_t_tbl$term=="Mean Total UMIs per Cell")] <- "Mean Total Reads per Cell"
+    vdj_t_tbl$term[which(vdj_t_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
 
 names(vdj_t_tbl) <- c("", "")
@@ -1390,8 +1390,8 @@ vdj_b_tbl <- tribble(
   "Fraction of Reads Used in Assembly", fractionAssembled,
   "Mean VDJ Reads per Cell", vdj_b_metrics$meanVDJReadsPerCell,
   "Median VDJ Reads per Cell", vdj_b_metrics$medianVDJReadsPerCell,
-  "Mean UMIs per Cell", vdj_b_metrics$meanUMIsPerCell,
-  "Median UMIs per Cell", vdj_b_metrics$medianUMIsPerCell,
+  "Mean Total UMIs per Cell", vdj_b_metrics$meanTotalUMIsPerCell,
+  "Median Total UMIs per Cell", vdj_b_metrics$medianTotalUMIsPerCell,
   "Pairing Rate", vdj_b_metrics$pairingRate,
   "Total Clone Types Detected", vdj_b_metrics$totalCloneTypes
 ) %>%
@@ -1400,8 +1400,8 @@ vdj_b_tbl <- tribble(
                          value > 1 ~ label_comma()(round(value))))
 ## Rename UMI terms
 if(!withUMI){
-    vdj_b_tbl$term[which(vdj_b_tbl$term=="Mean UMIs per Cell")] <- "Mean Reads per Cell"
-    vdj_b_tbl$term[which(vdj_b_tbl$term=="Median UMIs per Cell")] <- "Median Reads per Cell"
+    vdj_b_tbl$term[which(vdj_b_tbl$term=="Mean Total UMIs per Cell")] <- "Mean Total Reads per Cell"
+    vdj_b_tbl$term[which(vdj_b_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
 
 names(vdj_b_tbl) <- c("", "")

@@ -103,9 +103,10 @@ totalReadsInCB=$(wc -l $readCBList| awk '{print $1}')
 totalReadsInCell=$(wc -l $readCellList| awk '{print $1}')
 fractionReadsInCells=$(awk -v cell=$totalReadsInCell -v total=$totalReadsInCB 'BEGIN{print cell/total}')
 
-## calculate mean/median UMIs per cell, UMI of chain1 (heavy) and chain2 (light)
-meanUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput| sort -k 2,2rn | awk 'BEGIN{t=0}{t+=$2}END{print t/NR}')
-medianUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput | sort -k 2,2rn | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
+## calculate mean/median UMIs per cell, this is total UMI/reads in B/T cells, including VDJ UMI/reads
+meanTotalUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput| sort -k 2,2rn | awk 'BEGIN{t=0}{t+=$2}END{print t/NR}')
+medianTotalUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput | sort -k 2,2rn | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
+## This is VDJ UMI/reads only in B/T cells
 medianUMIsChain1=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1 in bc){print $1"\t"chain1_umi}}' $cellBC $trust4_report | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 medianUMIsChain2=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1 in bc){print $1"\t"chain2_umi}}' $cellBC $trust4_report | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 
@@ -241,8 +242,8 @@ then
        --arg medianVDJReadsPerCell "$medianVDJReadsPerCell" \
        --arg totalReadsInCell "$totalReadsInCell" \
        --arg fractionReadsInCells "$fractionReadsInCells" \
-       --arg meanUMIsPerCell "$meanUMIsPerCell" \
-       --arg medianUMIsPerCell "$medianUMIsPerCell" \
+       --arg meanTotalUMIsPerCell "$meanTotalUMIsPerCell" \
+       --arg medianTotalUMIsPerCell "$medianTotalUMIsPerCell" \
        --arg medianUMIsChain1 "$medianUMIsChain1" \
        --arg medianUMIsChain2 "$medianUMIsChain2" \
        --arg totalCloneTypes "$totalCloneTypes" \
@@ -252,7 +253,7 @@ then
        --arg cellsWithProductiveChainIGL "$cellsWithProductiveChainIGL" \
        --arg cellsWithProductiveChainIGKIGH "$cellsWithProductiveChainIGKIGH" \
        --arg cellsWithProductiveChainIGLIGH "$cellsWithProductiveChainIGLIGH" \
-       '{sampleName: $sampleName, totalRawReads: $totalRawReads, validBCreads: $validBCreads, saturation: $saturation, q30InCBandUMI: $q30InCBandUMI, q30InRNA: $q30InRNA, totalMappedReads: $totalMappedReads, uniquelyMappedReads: $uniquelyMappedReads, cells: $cells, totalReadsInCell: $totalReadsInCell, meanVDJReadsPerCell: $meanVDJReadsPerCell, medianVDJReadsPerCell: $medianVDJReadsPerCell, fractionReadsInCells: $fractionReadsInCells, meanUMIsPerCell: $meanUMIsPerCell, medianUMIsPerCell: $medianUMIsPerCell, medianUMIsChain1: $medianUMIsChain1, medianUMIsChain2: $medianUMIsChain2, totalCloneTypes: $totalCloneTypes, pairingRate: $pairingRate, cellsWithProductiveChainIGH: $cellsWithProductiveChainIGH, cellsWithProductiveChainIGK: $cellsWithProductiveChainIGK, cellsWithProductiveChainIGL: $cellsWithProductiveChainIGL, cellsWithProductiveChainIGKIGH: $cellsWithProductiveChainIGKIGH, cellsWithProductiveChainIGLIGH: $cellsWithProductiveChainIGLIGH}' > $metricsOut
+       '{sampleName: $sampleName, totalRawReads: $totalRawReads, validBCreads: $validBCreads, saturation: $saturation, q30InCBandUMI: $q30InCBandUMI, q30InRNA: $q30InRNA, totalMappedReads: $totalMappedReads, uniquelyMappedReads: $uniquelyMappedReads, cells: $cells, totalReadsInCell: $totalReadsInCell, meanVDJReadsPerCell: $meanVDJReadsPerCell, medianVDJReadsPerCell: $medianVDJReadsPerCell, fractionReadsInCells: $fractionReadsInCells, meanTotalUMIsPerCell: $meanTotalUMIsPerCell, medianTotalUMIsPerCell: $medianTotalUMIsPerCell, medianUMIsChain1: $medianUMIsChain1, medianUMIsChain2: $medianUMIsChain2, totalCloneTypes: $totalCloneTypes, pairingRate: $pairingRate, cellsWithProductiveChainIGH: $cellsWithProductiveChainIGH, cellsWithProductiveChainIGK: $cellsWithProductiveChainIGK, cellsWithProductiveChainIGL: $cellsWithProductiveChainIGL, cellsWithProductiveChainIGKIGH: $cellsWithProductiveChainIGKIGH, cellsWithProductiveChainIGLIGH: $cellsWithProductiveChainIGLIGH}' > $metricsOut
 
 elif [[ $cellType == "VDJ-T" ]]
 then
@@ -283,8 +284,8 @@ then
        --arg medianVDJReadsPerCell "$medianVDJReadsPerCell" \
        --arg totalReadsInCell "$totalReadsInCell" \
        --arg fractionReadsInCells "$fractionReadsInCells" \
-       --arg meanUMIsPerCell "$meanUMIsPerCell" \
-       --arg medianUMIsPerCell "$medianUMIsPerCell" \
+       --arg meanTotalUMIsPerCell "$meanTotalUMIsPerCell" \
+       --arg medianTotalUMIsPerCell "$medianTotalUMIsPerCell" \
        --arg medianUMIsChain1 "$medianUMIsChain1" \
        --arg medianUMIsChain2 "$medianUMIsChain2" \
        --arg totalCloneTypes "$totalCloneTypes" \
@@ -295,7 +296,7 @@ then
        --arg cellsWithProductiveChainTRG "$cellsWithProductiveChainTRG" \
        --arg cellsWithProductiveChainTRATRB "$cellsWithProductiveChainTRATRB" \
        --arg cellsWithProductiveChainTRGTRD "$cellsWithProductiveChainTRGTRD" \
-       '{sampleName: $sampleName, totalRawReads: $totalRawReads, validBCreads: $validBCreads, saturation: $saturation, q30InCBandUMI: $q30InCBandUMI, q30InRNA: $q30InRNA, totalMappedReads: $totalMappedReads, uniquelyMappedReads: $uniquelyMappedReads, cells: $cells, totalReadsInCell: $totalReadsInCell, meanReadsPerCell: $meanVDJReadsPerCell, medianVDJReadsPerCell: $medianReadsPerCell, fractionReadsInCells: $fractionReadsInCells, meanUMIsPerCell: $meanUMIsPerCell, medianUMIsPerCell: $medianUMIsPerCell, medianUMIsChain1: $medianUMIsChain1, medianUMIsChain2: $medianUMIsChain2, totalCloneTypes: $totalCloneTypes, pairingRate: $pairingRate, cellsWithProductiveChainTRB: $cellsWithProductiveChainTRB, cellsWithProductiveChainTRD: $cellsWithProductiveChainTRD, cellsWithProductiveChainTRA: $cellsWithProductiveChainTRA, cellsWithProductiveChainTRG: $cellsWithProductiveChainTRG, cellsWithProductiveChainTRATRB: $cellsWithProductiveChainTRATRB, cellsWithProductiveChainTRGTRD: $cellsWithProductiveChainTRGTRD}' > $metricsOut
+       '{sampleName: $sampleName, totalRawReads: $totalRawReads, validBCreads: $validBCreads, saturation: $saturation, q30InCBandUMI: $q30InCBandUMI, q30InRNA: $q30InRNA, totalMappedReads: $totalMappedReads, uniquelyMappedReads: $uniquelyMappedReads, cells: $cells, totalReadsInCell: $totalReadsInCell, meanReadsPerCell: $meanVDJReadsPerCell, medianVDJReadsPerCell: $medianReadsPerCell, fractionReadsInCells: $fractionReadsInCells, meanTotalUMIsPerCell: $meanTotalUMIsPerCell, medianTotalUMIsPerCell: $medianTotalUMIsPerCell, medianUMIsChain1: $medianUMIsChain1, medianUMIsChain2: $medianUMIsChain2, totalCloneTypes: $totalCloneTypes, pairingRate: $pairingRate, cellsWithProductiveChainTRB: $cellsWithProductiveChainTRB, cellsWithProductiveChainTRD: $cellsWithProductiveChainTRD, cellsWithProductiveChainTRA: $cellsWithProductiveChainTRA, cellsWithProductiveChainTRG: $cellsWithProductiveChainTRG, cellsWithProductiveChainTRATRB: $cellsWithProductiveChainTRATRB, cellsWithProductiveChainTRGTRD: $cellsWithProductiveChainTRGTRD}' > $metricsOut
 
 else
     echo "cellType only supports VDJ-T and VDJ-B" &>2
