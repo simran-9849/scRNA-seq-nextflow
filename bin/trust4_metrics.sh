@@ -96,7 +96,7 @@ awk 'ARGIND==1{cell[$1]}ARGIND==2{if($2 in cell){print}}' $cellBC $readCBList > 
 
 ## calculate mean/median reads per cell
 meanVDJReadsPerCell=$(awk '{print $2}' $readCellList | sort | uniq -c | awk '{print $1}' | sort -k 1,1rn | awk 'BEGIN{t=0}{t+=$1}END{print t/NR}')
-medianVDJReadsPerCell=$(awk '{print $2}' $readCellList | sort | uniq -c | awk '{a[$1]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
+medianVDJReadsPerCell=$(awk '{print $2}' $readCellList | sort | uniq -c | awk '{a[FNR]=$1}END{n = asort(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 
 ## total reads of barcode
 totalReadsInCB=$(wc -l $readCBList| awk '{print $1}')
@@ -105,7 +105,8 @@ fractionReadsInCells=$(awk -v cell=$totalReadsInCell -v total=$totalReadsInCB 'B
 
 ## calculate mean/median UMIs per cell, this is total UMI/reads in B/T cells, including VDJ UMI/reads
 meanTotalUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput| sort -k 2,2rn | awk 'BEGIN{t=0}{t+=$2}END{print t/NR}')
-medianTotalUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput | sort -k 2,2rn | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
+## Do not use asorti to sort index, or it will be treated as strings instead of numbers
+medianTotalUMIsPerCell=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{if($1 in bc){print}}' $cellBC $kneeInput | sort -k 2,2rn | awk '{a[FNR]=$2}END{n = asort(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 ## This is VDJ UMI/reads only in B/T cells
 medianUMIsChain1=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1 in bc){print $1"\t"chain1_umi}}' $cellBC $trust4_report | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
 medianUMIsChain2=$(awk 'ARGIND==1{bc[$1]}ARGIND==2{split($3, chain1, ","); split($4, chain2, ","); chain1_umi=chain1[7]; chain2_umi=chain2[7]; if($1 in bc){print $1"\t"chain2_umi}}' $cellBC $trust4_report | awk '{a[$2]}END{asorti(a); n=length(a); if(n%2==1){print a[n/2+0.5]}else{print (a[n/2]+a[n/2+1])/2}}')
@@ -129,6 +130,7 @@ awk '
             gsub(/\*.*/, "", chain1[3])
         }else{
             s1="NA"
+            split("*,*,*", chain1, ",")
         };
         if($4!="*"){
             split($4, chain2, ",");
@@ -137,10 +139,17 @@ awk '
             gsub(/\*.*/, "", chain2[3])
         }else{
             s2="NA"
+            split("*,*,*", chain2, ",")
         }
         name1=substr($3,1,3);
         name2=substr($4,1,3);
-        print name1":"s1";"name2":"s2"\t"chain1[1]"|"chain1[2]"|"chain1[3]"\t"chain2[1]"|"chain2[3]
+        if(s1!="NA" && s2!="NA"){
+            print name1":"s1";"name2":"s2"\t"chain1[1]"|"chain1[2]"|"chain1[3]"\t"chain2[1]"|"chain2[3]
+        }else if(s1!="NA"){
+            print name1":"s1"\t"chain1[1]"|"chain1[2]"|"chain1[3]"\tNA"
+        }else if(s2!="NA"){
+            print name2":"s2"\tNA\t"chain2[1]"|"chain2[3]
+        }
     }
     ' | sort | uniq -c | sort -k 1,1rn |
     awk -v cellNum=$cellNum 'BEGIN{print "cloneType\tHchain_VDJ\tLchain_VDJ\tCellCount\tFrequency"}{print $2"\t"$3"\t"$4"\t"$1"\t"$1/cellNum}' > $cloneTypeResult
