@@ -133,6 +133,12 @@ if(is.null(params$VDJ_B_metrics) || params$VDJ_B_metrics == "") {
 }else{
     include_bcr <- TRUE
 }
+
+
+## Note since GEX data only support UMI, so include_gex requires withUMI == TRUE
+if(include_gex && !params$withUMI){
+    stop("GEX data requires library structure containing UMI")
+}
 ```
 
 ```{r include = FALSE}
@@ -1121,7 +1127,7 @@ vdj_t_tbl <- tribble(
                          value > 1 ~ label_comma()(round(value))))
                          
 ## Rename UMI terms
-if(!withUMI){
+if(!params$withUMI){
     vdj_t_tbl$term[which(vdj_t_tbl$term=="Mean Total UMIs per Cell")] <- "Mean Total Reads per Cell"
     vdj_t_tbl$term[which(vdj_t_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
@@ -1136,7 +1142,11 @@ vdj_t_tbl %>%
 
 ```{r eval = include_tcr}
 cellNum <- as.numeric(vdj_t_metrics$cells)
-vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeOut, col_names = c("CB", "UMI"))
+if(params$withUMI){
+    vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeOut, col_names = c("CB", "UMI"))
+}else{
+    vdj_t_kneeData <- read_tsv(params$VDJ_T_kneeOut, col_names = c("CB", "Reads"))
+}
 vdj_t_cells <- read_tsv(params$VDJ_T_cells)
 vdj_t_knee <- vdj_t_kneeData %>% 
     mutate(
@@ -1399,7 +1409,7 @@ vdj_b_tbl <- tribble(
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
 ## Rename UMI terms
-if(!withUMI){
+if(!params$withUMI){
     vdj_b_tbl$term[which(vdj_b_tbl$term=="Mean Total UMIs per Cell")] <- "Mean Total Reads per Cell"
     vdj_b_tbl$term[which(vdj_b_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
@@ -1414,7 +1424,11 @@ vdj_b_tbl %>%
 
 ```{r eval = include_bcr}
 cellNum <- as.numeric(vdj_b_metrics$cells)
-vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeOut, col_names = c("CB", "UMI"))
+if(params$withUMI){
+    vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeOut, col_names = c("CB", "UMI"))
+}else{
+    vdj_b_kneeData <- read_tsv(params$VDJ_B_kneeOut, col_names = c("CB", "Reads"))
+}
 vdj_b_cells <- read_tsv(params$VDJ_B_cells)
 vdj_b_knee <- vdj_b_kneeData %>% 
     mutate(
@@ -1597,7 +1611,7 @@ coverage_plots$chain2_plot
 Running Info {data-orientation=rows}
 ====================
 
-Row {data-height = 600}
+Row {data-height = 800}
 ----------
 
 ### Running Information
@@ -1626,7 +1640,7 @@ version_tbl <- tribble(
   "includeIntron", version_info$includeIntron,
   "includeMultiReads", version_info$includeMultiReads
 )
-if(!withUMI){
+if(!params$withUMI){
     version_tbl <- version_tbl %>%
         filter(!(term %in%c("UMIfiltering", "UMIdedup")))
 }

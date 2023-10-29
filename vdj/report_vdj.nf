@@ -94,7 +94,8 @@ process REPORT_VDJ {
     def VDJ_T_trust4_metrics = trust4_metrics_map["VDJ-T"] ? trust4_metrics_map["VDJ-T"] : ""
     def VDJ_T_cloneType = trust4_cloneType_map["VDJ-T"] ? trust4_cloneType_map["VDJ-T"] : ""
 
-
+    // Using UMI or Reads
+    def withUMI = params.soloType == "CB_samTagOut" ? "FALSE" : "TRUE"
     """
     #! /usr/bin/env Rscript
 
@@ -123,7 +124,8 @@ process REPORT_VDJ {
             VDJ_T_finalOut = "${VDJ_T_finalOut}",
             VDJ_T_cells = "${VDJ_T_cells}",
             VDJ_T_metrics = "${VDJ_T_trust4_metrics}",
-            VDJ_T_cloneType = "${VDJ_T_cloneType}"
+            VDJ_T_cloneType = "${VDJ_T_cloneType}",
+            withUMI = ${withUMI}
         ),
         intermediates_dir = getwd(),
         knit_root_dir = getwd(),
