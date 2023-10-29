@@ -144,21 +144,22 @@ if(include_gex && !params$withUMI){
 ```{r include = FALSE}
 ## lineage stats
 ## get lineage information
-## defined as the same VDJ segements and > 80% CDR3 nt identity
+## defined as the same VDJ segements, identical CDR3 length and > 80% CDR3 nt identity
 getLineage <- function(cells, barcode_report){
     d <- read_tsv(barcode_report) %>%
         dplyr::rename("barcode" = "#barcode") %>%
         select(barcode, chain1, chain2) %>% 
         filter(barcode %in% cells) %>%
         filter(chain1 != "*", chain2 !="*")
-    d$chain1_V <- strsplit(d$chain1,",") %>% sapply("[",1)
-    d$chain1_D <- strsplit(d$chain1,",") %>% sapply("[",2)
-    d$chain1_J <- strsplit(d$chain1,",") %>% sapply("[",3)
+    
+    d$chain1_V <- strsplit(d$chain1,",") %>% sapply("[",1) %>% str_remove("\\*[0-9]+$")
+    d$chain1_D <- strsplit(d$chain1,",") %>% sapply("[",2) %>% str_remove("\\*[0-9]+$")
+    d$chain1_J <- strsplit(d$chain1,",") %>% sapply("[",3) %>% str_remove("\\*[0-9]+$")
     d$chain1_cdr3 <- strsplit(d$chain1,",") %>% sapply("[",5)
     
-    d$chain2_V <- strsplit(d$chain2,",") %>% sapply("[",1)
-    d$chain2_D <- strsplit(d$chain2,",") %>% sapply("[",2)
-    d$chain2_J <- strsplit(d$chain2,",") %>% sapply("[",3)
+    d$chain2_V <- strsplit(d$chain2,",") %>% sapply("[",1) %>% str_remove("\\*[0-9]+$")
+    d$chain2_D <- strsplit(d$chain2,",") %>% sapply("[",2) %>% str_remove("\\*[0-9]+$")
+    d$chain2_J <- strsplit(d$chain2,",") %>% sapply("[",3) %>% str_remove("\\*[0-9]+$")
     d$chain2_cdr3 <- strsplit(d$chain2,",") %>% sapply("[",5)
     
     d0 <- d %>% mutate(cdrh3_len = str_length(chain1_cdr3)) %>%
@@ -167,20 +168,55 @@ getLineage <- function(cells, barcode_report){
     
     d_single <- d0[sapply(d0, nrow)==1]
     d_multiple <- d0[sapply(d0, nrow)>1]
-    d_multiple %>% lapply(function(x){
-        k <- x %>% pull(chain1_cdr3)
+    
+    d_multiple_final <- list()
+    for(i in 1:length(d_multiple)){
+        
+        k <- d_multiple[[i]] %>% pull(chain1_cdr3)
         aln <- as.alignment(nb = length(k), nam = 1:length(k), k)
         aln_dist <- dist.alignment(aln, matrix = "identity",gap = T) %>% as.matrix()
         identityM <- 1-aln_dist^2
-        thre <- 1 + (length(k)-1)*0.8
-        if(any(colSums(identityM) < thre)){
-            m <- x[colSums(identityM) < thre, ]
-            for(i in 1:nrow(m))
-            return(x[colSums(identityM) >= thre, ])
+        
+        tr <- hclust(as.dist(1-identityM))
+        ## use cutree to define families, cutoff is 0.2 (80% identity)
+        familyIdx <- cutree(tr, h=0.2)
+        
+        if(length(unique(familyIdx))==1){
+            d_multiple_final[[length(d_multiple_final)+1]] <- d_multiple[[i]]
         }else{
-            return(x)
+            m <- d_multiple[[i]] %>%
+                mutate(family=as.character(familyIdx)) %>%
+                ungroup() %>%
+                group_by(family) %>%
+                group_split(.keep = FALSE)
+            for(u in 1:length(m)){
+                if(nrow(m[[u]])>1){
+                    d_multiple_final[[length(d_multiple_final)+1]] <- m[[u]]
+                }else{
+                    d_single[[length(d_single)+1]] <- m[[u]]
+                }
+            }
         }
-    })
+    }
+    
+    singleInfo <- list()
+    for(i in 1:length(d_single)){
+        singleInfo[[i]] <- d_single[[i]] %>%
+            mutate(lineageType = "single",
+                   lineageName = paste0("LS", i))
+    }
+    
+    multipleInfo <- list()
+    for(i in 1:length(d_multiple_final)){
+        multipleInfo[[i]] <- d_multiple_final[[i]] %>%
+            mutate(lineageType = "multiple",
+                   lineageName = paste0("LM", i))
+    }
+    
+    single_df <- do.call(bind_rows, singleInfo)
+    multiple_df <- do.call(bind_rows, multipleInfo)
+    lineageInfo <- bind_rows(single_df, multiple_df)
+    return(lineageInfo)
 }
 ```
 
@@ -1307,7 +1343,7 @@ Row {data-height=400}
 
 ### V Region Coverage (Chain1)
 
-```{r eval = include_tcr}
+```{r eval = include_tcr, fig.width = 7, fig.height = 4}
 coverage_plots <- plot_VDJ_coverage(
     cells = vdj_t_cells$CB, 
     barcode_report = params$VDJ_T_report, 
@@ -1321,8 +1357,80 @@ coverage_plots$chain1_plot
 ### V Region Coverage (Chain2)
 
 
-```{r eval = include_tcr}
+```{r eval = include_tcr, fig.width = 7, fig.height = 4}
 coverage_plots$chain2_plot
+```
+
+Row
+----------
+
+### Lineage Stats
+
+```{r eval = include_tcr}
+tcr_lineageInfo <- getLineage(cells = vdj_t_cells$CB,
+                              barcode_report = params$VDJ_T_report)
+tcr_pairing_clones <- tcr_lineageInfo %>%
+    select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
+           chain2_V, chain2_J, chain2_cdr3) %>%
+    distinct() %>%
+    nrow()
+tcr_lineage_number <- tcr_lineageInfo %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+multipleLineageCellNumber <- tcr_lineageInfo %>%
+    filter(lineageType == "multiple") %>%
+    nrow()
+multipleCellLineageNumber <- tcr_lineageInfo %>%
+    filter(lineageType == "multiple") %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+singleCellLineageNumber <- tcr_lineageInfo %>%
+    filter(lineageType == "single") %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+lineage_tbl <- tribble(
+    ~term, ~value,
+    "Clones (paired)", tcr_pairing_clones,
+    "Lineage Number", tcr_lineage_number,
+    "Single Cell Lineage Number", singleCellLineageNumber,
+    "Multiple Cell Lineage Number", multipleCellLineageNumber,
+    "Cells in Multiple Cell Lineages", multipleLineageCellNumber,
+    "Total Cells with Paired Clones", nrow(tcr_lineageInfo)
+)
+   
+names(lineage_tbl) <- c("", "")
+lineage_tbl %>% 
+    kbl() %>% 
+    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+### Lineage Plots
+
+
+```{r eval = include_tcr, echo=FALSE, out.width="49%", fig.show="hold"}
+info = c(tcr_lineageInfo %>% filter(lineageType == "single") %>% nrow(), 
+         tcr_lineageInfo %>% filter(lineageType == "multiple") %>% nrow())
+piepercent = c(paste0(round(info[1]/sum(info),4)*100,"%"), 
+               paste0(round(info[2]/sum(info),4)*100,"%"))
+names = c("Cell in Expanded Lineages", 
+          "Cell in Singleton Lineages")
+
+LineageCellNumber <- tcr_lineageInfo %>% 
+    filter(lineageType == "multiple") %>%
+    group_by(LineageName) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count))
+
+if(nrow(LineageCellNumber)>50){
+    LineageCellNumber <- LineageCellNumber[1:50, ]
+}
+bar_plot = data.frame(rank=1:nrow(LineageCellNumber),
+                      cellNum = LineageCellNumber$count)
+
+cols = c("#3f48CC","grey")
+pie(info,labels=piepercent,col=cols)
+legend("bottom", inset = -0.02, names, cex=0.7, fill= cols, border = "white", text.width = strwidth("cells in singleton lineages"))
+barplot(bar_plot$cellNum, names.arg = bar_plot$rank, xlab = "Multi-cell Lineages", ylab = "Cell Count", col = "#3f48CC")
 ```
 
 
@@ -1590,7 +1698,7 @@ Row {data-height=400}
 
 ### V Region Coverage (Chain1)
 
-```{r eval = include_bcr}
+```{r eval = include_bcr, fig.width = 7, fig.height = 4}
 coverage_plots <- plot_VDJ_coverage(
     cells = vdj_b_cells$CB, 
     barcode_report = params$VDJ_B_report, 
@@ -1604,8 +1712,81 @@ coverage_plots$chain1_plot
 ### V Region Coverage (Chain2)
 
 
-```{r eval = include_bcr}
+```{r eval = include_bcr, fig.width = 7, fig.height = 4}
 coverage_plots$chain2_plot
+```
+
+Row
+----------
+
+### Lineage Stats
+
+```{r eval = include_bcr}
+bcr_lineageInfo <- getLineage(cells = vdj_b_cells$CB,
+                              barcode_report = params$VDJ_B_report)
+bcr_pairing_clones <- bcr_lineageInfo %>%
+    select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
+           chain2_V, chain2_J, chain2_cdr3) %>%
+    distinct() %>%
+    nrow()
+bcr_lineage_number <- bcr_lineageInfo %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+multipleLineageCellNumber <- bcr_lineageInfo %>%
+    filter(lineageType == "multiple") %>%
+    nrow()
+multipleCellLineageNumber <- bcr_lineageInfo %>%
+    filter(lineageType == "multiple") %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+singleCellLineageNumber <- bcr_lineageInfo %>%
+    filter(lineageType == "single") %>%
+    pull(lineageName) %>%
+    unique() %>% length()
+lineage_tbl <- tribble(
+    ~term, ~value,
+    "Clones (paired)", bcr_pairing_clones,
+    "Lineage Number", bcr_lineage_number,
+    "Single Cell Lineage Number", singleCellLineageNumber,
+    "Multiple Cell Lineage Number", multipleCellLineageNumber,
+    "Cells in Multiple Cell Lineages", multipleLineageCellNumber,
+    "Total Cells with Paired Clones", nrow(bcr_lineageInfo)
+)
+   
+names(lineage_tbl) <- c("", "")
+lineage_tbl %>% 
+    kbl() %>% 
+    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+```
+
+### Lineage Plots
+
+
+```{r eval = include_bcr, echo=FALSE, out.width="49%", fig.show="hold"}
+info = c(bcr_lineageInfo %>% filter(lineageType == "single") %>% nrow(), 
+         bcr_lineageInfo %>% filter(lineageType == "multiple") %>% nrow())
+piepercent = c(paste0(round(info[1]/sum(info),4)*100,"%"), 
+               paste0(round(info[2]/sum(info),4)*100,"%"))
+names = c("Cell in Expanded Lineages", 
+          "Cell in Singleton Lineages")
+
+LineageCellNumber <- bcr_lineageInfo %>% 
+    filter(lineageType == "multiple") %>%
+    group_by(lineageName) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count))
+
+if(nrow(LineageCellNumber)>50){
+    LineageCellNumber <- LineageCellNumber[1:50, ]
+}
+bar_plot = data.frame(rank=1:nrow(LineageCellNumber),
+                      cellNum = LineageCellNumber$count)
+
+cols = c("#3f48CC","grey")
+pie(info,labels=piepercent,col=cols)
+legend("bottom", inset = -0.02, names, cex=0.7, fill= cols, border = "white", text.width = strwidth("cells in singleton lineages"))
+
+barplot(bar_plot$cellNum, names.arg = bar_plot$rank, xlab = "Multi-cell Lineages", ylab = "Cell Count", col = "#3f48CC")
 ```
 
 
