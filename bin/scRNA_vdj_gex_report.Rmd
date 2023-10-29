@@ -37,6 +37,7 @@ params:
   VDJ_T_cells: "VDJ_T_cells.tsv"
   VDJ_T_metrics: "VDJ-T_metrics.json"
   VDJ_T_cloneType: "VDJ-T.cloneType.tsv"
+  withUMI: TRUE
 ---
 
 ```{css echo = FALSE}
@@ -403,10 +404,25 @@ extract_cdr_end <- function(vdj_seq, cdr_seq){
   ## prepare position data for cdr rect
   cdr1_min_start <- min(chainInfo$cdr1_start_aligned)/3
   cdr1_max_end <- max(chainInfo$cdr1_end_aligned)/3
+  if(is.na(cdr1_min_start) || is.na(cdr1_max_end)){
+      cdr1_min_start <- cdr1_start
+      cdr1_max_end <- cdr1_end
+  }
+
   cdr2_min_start <- min(chainInfo$cdr2_start_aligned)/3
   cdr2_max_end <- max(chainInfo$cdr2_end_aligned)/3
+  if(is.na(cdr2_min_start) || is.na(cdr2_max_end)){
+      cdr2_min_start <- cdr2_start
+      cdr2_max_end <- cdr2_end
+  }
+  
   cdr3_min_start <- min(chainInfo$cdr3_start_aligned)/3
   cdr3_max_end <- max(chainInfo$cdr3_end_aligned)/3
+  if(is.na(cdr3_min_start) || is.na(cdr3_max_end)){
+      cdr3_min_start <- cdr3_start
+      cdr3_max_end <- cdr3_end
+  }
+  
   p <- ggplot(data = dt_final, 
               mapping = aes(x=length_aa, y = median_reads)) + 
     geom_rect(aes(xmin = cdr1_min_start, xmax = cdr1_max_end, ymin=-Inf,ymax=Inf),
@@ -1056,10 +1072,10 @@ fromJSON(params$VDJ_T_metrics) %>%
 valueBox(vdj_t_metrics$cells %>% as.numeric() %>% label_comma()(), icon = "fa-circle-notch", color = "info")
 ```
 
-### Mean Reads per Cell
+### Mean VDJ Reads per Cell
 
 ```{r eval = include_tcr}
-valueBox(vdj_t_metrics$meanReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
+valueBox(vdj_t_metrics$meanVDJReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
 ```
 
 ### Total Clonetypes Discovered
@@ -1090,11 +1106,11 @@ fractionAssembled <- as.character(fractionAssembled)
 
 vdj_t_tbl <- tribble(
   ~term, ~value,
-  "Estimated Number of Cells", vdj_t_metrics$cells,
+  "Estimated Number of Cells (including non-pairing cells)", vdj_t_metrics$cells,
   "Reads in Cells Mapped to VDJ Gene", vdj_t_metrics$totalReadsInCell,
   "Fraction of Reads Used in Assembly", fractionAssembled,
-  "Mean Reads per Cell", vdj_t_metrics$meanReadsPerCell,
-  "Median Reads per Cell", vdj_t_metrics$medianReadsPerCell,
+  "Mean VDJ Reads per Cell", vdj_t_metrics$meanVDJReadsPerCell,
+  "Median VDJ Reads per Cell", vdj_t_metrics$medianVDJReadsPerCell,
   "Mean UMIs per Cell", vdj_t_metrics$meanUMIsPerCell,
   "Median UMIs per Cell", vdj_t_metrics$medianUMIsPerCell,
   "Pairing Rate", vdj_t_metrics$pairingRate,
@@ -1103,6 +1119,13 @@ vdj_t_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+                         
+## Rename UMI terms
+if(!withUMI){
+    vdj_t_tbl$term[which(vdj_t_tbl$term=="Mean UMIs per Cell")] <- "Mean Reads per Cell"
+    vdj_t_tbl$term[which(vdj_t_tbl$term=="Median UMIs per Cell")] <- "Median Reads per Cell"
+}
+
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
@@ -1328,10 +1351,10 @@ fromJSON(params$VDJ_B_metrics) %>%
 valueBox(vdj_b_metrics$cells %>% as.numeric() %>% label_comma()(), icon = "fa-circle-notch", color = "info")
 ```
 
-### Mean Reads per Cell
+### Mean VDJ Reads per Cell
 
 ```{r eval = include_bcr}
-valueBox(vdj_b_metrics$meanReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
+valueBox(vdj_b_metrics$meanVDJReadsPerCell %>% as.numeric() %>% round %>% label_comma()(), icon = "fa-chart-bar", color = "primary")
 ```
 
 ### Total Clonetypes Discovered
@@ -1362,11 +1385,11 @@ fractionAssembled <- as.character(fractionAssembled)
 
 vdj_b_tbl <- tribble(
   ~term, ~value,
-  "Estimated Number of Cells", vdj_b_metrics$cells,
+  "Estimated Number of Cells (including non-pairing cells)", vdj_b_metrics$cells,
   "Reads in Cells Mapped to VDJ Gene", vdj_b_metrics$totalReadsInCell,
   "Fraction of Reads Used in Assembly", fractionAssembled,
-  "Mean Reads per Cell", vdj_b_metrics$meanReadsPerCell,
-  "Median Reads per Cell", vdj_b_metrics$medianReadsPerCell,
+  "Mean VDJ Reads per Cell", vdj_b_metrics$meanVDJReadsPerCell,
+  "Median VDJ Reads per Cell", vdj_b_metrics$medianVDJReadsPerCell,
   "Mean UMIs per Cell", vdj_b_metrics$meanUMIsPerCell,
   "Median UMIs per Cell", vdj_b_metrics$medianUMIsPerCell,
   "Pairing Rate", vdj_b_metrics$pairingRate,
@@ -1375,6 +1398,12 @@ vdj_b_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+## Rename UMI terms
+if(!withUMI){
+    vdj_b_tbl$term[which(vdj_b_tbl$term=="Mean UMIs per Cell")] <- "Mean Reads per Cell"
+    vdj_b_tbl$term[which(vdj_b_tbl$term=="Median UMIs per Cell")] <- "Median Reads per Cell"
+}
+
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
@@ -1575,6 +1604,12 @@ Row {data-height = 600}
 
 ```{r}
 version_info <- fromJSON(params$version_json)
+
+if(include_gex){
+    cellCallingMethod <- version_info$soloCellFilter
+}else{
+    cellCallingMethod <- "cellRanger 2.2"
+}
 version_tbl <- tribble(
   ~term, ~value,
   "Sample ID", params$sampleName,
@@ -1587,10 +1622,18 @@ version_tbl <- tribble(
   "Whitelist Matching", version_info$soloCBmatchWLtype,
   "UMIfiltering", version_info$soloUMIfiltering,
   "UMIdedup", version_info$soloUMIdedup,
-  "Cell Calling", version_info$soloCellFilter,
+  "Cell Calling", cellCallingMethod,
   "includeIntron", version_info$includeIntron,
   "includeMultiReads", version_info$includeMultiReads
 )
+if(!withUMI){
+    version_tbl <- version_tbl %>%
+        filter(!(term %in%c("UMIfiltering", "UMIdedup")))
+}
+if(!include_gex){
+    version_tbl <- version_tbl %>%
+        filter(!(term %in%c("includeIntron", "includeMultiReads")))
+}
 names(version_tbl) <- c("", "")
 version_tbl %>% 
     kbl() %>% 
