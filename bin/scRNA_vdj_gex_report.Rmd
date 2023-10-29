@@ -813,7 +813,7 @@ fig <- plot_ly(data = umi_dist, x = ~cell, y = ~UMI, type = 'scatter', mode = 'l
                hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
                line = list(width = 3),
                height = 400, width = 360)
-fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
+fig <- layout(fig, xaxis = list(title = "Barcode Rank", type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
 config_plotly_fig(fig) %>% toWebGL()
 
 ##ggplot(umi_dist, aes(x=cell, y=UMI, color = group)) + 
@@ -1157,7 +1157,7 @@ fig <- plot_ly(data = vdj_t_knee, x = ~cell, y = ~UMI, type = 'scatter', mode = 
                hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
                line = list(width = 3),
                height = 400, width = 360)
-fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
+fig <- layout(fig, xaxis = list(title = "Barcode Rank", type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
 
 if(!params$withUMI){
     fig <- layout(fig, yaxis = list(title = "Reads"))
@@ -1302,7 +1302,7 @@ vdj_t_cloneType %>%
                   options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
 
-Row {data-height = 400}
+Row {data-height=400}
 ----------
 
 ### V Region Coverage (Chain1)
@@ -1440,9 +1440,12 @@ fig <- plot_ly(data = vdj_b_knee, x = ~cell, y = ~UMI, type = 'scatter', mode = 
                hovertemplate = 'UMI: %{y}<extra>%{fullData.name}</extra>',
                line = list(width = 3),
                height = 400, width = 360)
-fig <- layout(fig, xaxis = list(type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
+
+fig <- layout(fig, xaxis = list(title = "Barcode Rank", type = "log"),yaxis = list(type = "log"), showlegend = FALSE)
+
 if(!params$withUMI){
     fig <- layout(fig, yaxis = list(title = "Reads"))
+
 }
 config_plotly_fig(fig) %>% toWebGL()
 ```
@@ -1582,7 +1585,7 @@ vdj_b_cloneType %>%
                   options = list(scrollX = T, scrollY = F, pageLength = 10))
 ```
 
-Row {data-height = 400}
+Row {data-height=400}
 ----------
 
 ### V Region Coverage (Chain1)
@@ -1611,7 +1614,7 @@ coverage_plots$chain2_plot
 Running Info {data-orientation=rows}
 ====================
 
-Row {data-height = 800}
+Row {data-height=600}
 ----------
 
 ### Running Information
