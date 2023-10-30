@@ -185,7 +185,7 @@ uniquelyMappedReads=$(extractSummaryTerm $starsolo_summary "Reads Mapped to Geno
 ## Total cloneTypes detected
 totalCloneTypes=$(wc -l $cloneTypeResult| awk '{print $1-1}')
 
-pairingCellNum=$(awk 'BEGIN{t=0}NR>1 && $1!~/*/{t+=$4}END{print t}' $cloneTypeResult)
+pairingCellNum=$(awk 'BEGIN{t=0}NR>1 && $2!~/NA/ && $3!~/NA/{t+=$4}END{print t}' $cloneTypeResult)
 pairingRate=$(awk -v pairingCellNum=$pairingCellNum -v cellNum=$cellNum 'BEGIN{print pairingCellNum/cellNum}')
 
 countProductiveCells(){
