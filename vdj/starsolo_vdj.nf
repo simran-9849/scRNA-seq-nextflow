@@ -268,7 +268,8 @@ process STARSOLO_COMPLEX_VDJ {
     }else{
         bamOutTags = "NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM"
     }
-    
+    def CBtag = params.whitelist == "None" ? "CR" : "CB"
+
     def scriptString = []
     scriptString.push(
     """
