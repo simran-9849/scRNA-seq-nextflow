@@ -222,9 +222,51 @@ getLineage <- function(cells, barcode_report){
 
 
 ```{r include = FALSE}
+## pairing accuracy
+## Defined as cells with identical H chain VDJ as well as CHRH3 but different L chain VDJ
+## take lineageInfo data (getLineage() output) as input
+
+calc_pairing_accuracy <- function(lineageInfo){
+    totalCells <- nrow(lineageInfo)
+    d <- lineageInfo %>% ungroup() %>%
+        group_by(chain1_V, chain1_D, chain1_J, chain1_cdr3) %>%
+        group_split()
+    disconcordantCells <- d %>% sapply(FUN = function(x){
+        x %>% select(chain2_V, chain2_J) %>%
+            ungroup() %>%
+            group_by(chain2_V, chain2_J) %>%
+            summarize(count = n()) %>% 
+            arrange(desc(count)) %>%
+            slice_tail(n=-1) %>%
+            pull(count) %>%
+            sum()
+    }) %>%
+    sum()
+    return(1-disconcordantCells/totalCells)
+}
+```
+
+
+```{r include = FALSE}
 ## https://liulab-dfci.github.io/RIMA/Repertoire.html#tcr-and-bcr-entropy-and-clonality
 ## function to calculate Shannon entropy and clonality
+## take lineageInfo data (getLineage() output) as input
 
+getEntropy <- function(lineageInfo){
+    totalCells <- nrow(lineageInfo)
+    ## use cloneType instead of family
+    d <- lineageInfo %>% 
+        ungroup() %>%
+        group_by(chain1_V, chain1_D, chain1_J, chain1_cdr3, chain2_V, chain2_J, chain2_cdr3) %>%
+        summarize(cellCount = n()) %>%
+        mutate(percent = cellCount/totalCells) %>%
+        pull(percent)
+    entropy <- -sum(log(d)*d)
+}
+
+getClonality <- function(entropy, cloneTypeNum){
+    1-(entropy/log(cloneTypeNum))
+}
 ```
 
 
@@ -1361,10 +1403,10 @@ coverage_plots$chain1_plot
 coverage_plots$chain2_plot
 ```
 
-Row
+Row {data-height=600}
 ----------
 
-### Lineage Stats
+### Lineage & CloneType Stats
 
 ```{r eval = include_tcr}
 tcr_lineageInfo <- getLineage(cells = vdj_t_cells$CB,
@@ -1388,6 +1430,11 @@ singleCellLineageNumber <- tcr_lineageInfo %>%
     filter(lineageType == "single") %>%
     pull(lineageName) %>%
     unique() %>% length()
+
+pairingAccuracy <- calc_pairing_accuracy(tcr_lineageInfo)
+entropy <- getEntropy(tcr_lineageInfo)
+clonality <- getClonality(entropy, tcr_pairing_clones)
+
 lineage_tbl <- tribble(
     ~term, ~value,
     "Clones (paired)", tcr_pairing_clones,
@@ -1395,8 +1442,13 @@ lineage_tbl <- tribble(
     "Single Cell Lineage Number", singleCellLineageNumber,
     "Multiple Cell Lineage Number", multipleCellLineageNumber,
     "Cells in Multiple Cell Lineages", multipleLineageCellNumber,
-    "Total Cells with Paired Clones", nrow(tcr_lineageInfo)
+    "Total Cells with Paired Clones", nrow(tcr_lineageInfo),
+    "Pairing Accuracy", label_percent(0.01)(pairingAccuracy),
+    "Shannon Entropy", label_number(0.001)(entropy),
+    "Clonality", label_number(0.001)(clonality)
 )
+
+
    
 names(lineage_tbl) <- c("", "")
 lineage_tbl %>% 
@@ -1716,10 +1768,10 @@ coverage_plots$chain1_plot
 coverage_plots$chain2_plot
 ```
 
-Row
+Row {data-height=600}
 ----------
 
-### Lineage Stats
+### Lineage & CloneType Stats
 
 ```{r eval = include_bcr}
 bcr_lineageInfo <- getLineage(cells = vdj_b_cells$CB,
@@ -1743,14 +1795,23 @@ singleCellLineageNumber <- bcr_lineageInfo %>%
     filter(lineageType == "single") %>%
     pull(lineageName) %>%
     unique() %>% length()
+
+pairingAccuracy <- calc_pairing_accuracy(bcr_lineageInfo)
+entropy <- getEntropy(bcr_lineageInfo)
+clonality <- getClonality(entropy, bcr_pairing_clones)
+
+
 lineage_tbl <- tribble(
     ~term, ~value,
-    "Clones (paired)", bcr_pairing_clones,
-    "Lineage Number", bcr_lineage_number,
-    "Single Cell Lineage Number", singleCellLineageNumber,
-    "Multiple Cell Lineage Number", multipleCellLineageNumber,
-    "Cells in Multiple Cell Lineages", multipleLineageCellNumber,
-    "Total Cells with Paired Clones", nrow(bcr_lineageInfo)
+    "Clones (Paired)", label_comma()(bcr_pairing_clones),
+    "Lineage Number", label_comma()(bcr_lineage_number),
+    "Single Cell Lineage Number", label_comma()(singleCellLineageNumber),
+    "Multiple Cell Lineage Number", label_comma()(multipleCellLineageNumber),
+    "Cells in Multiple Cell Lineages", label_comma()(multipleLineageCellNumber),
+    "Total Cells with Paired Clones", label_comma()(nrow(bcr_lineageInfo)),
+    "Pairing Accuracy", label_percent(0.01)(pairingAccuracy),
+    "Shannon Entropy", label_number(0.001)(entropy),
+    "Clonality", label_number(0.001)(clonality)
 )
    
 names(lineage_tbl) <- c("", "")
