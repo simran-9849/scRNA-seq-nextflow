@@ -1403,7 +1403,7 @@ coverage_plots$chain1_plot
 coverage_plots$chain2_plot
 ```
 
-Row {data-height=600}
+Row {data-height=400}
 ----------
 
 ### Lineage & CloneType Stats
@@ -1768,7 +1768,7 @@ coverage_plots$chain1_plot
 coverage_plots$chain2_plot
 ```
 
-Row {data-height=600}
+Row {data-height=400}
 ----------
 
 ### Lineage & CloneType Stats
