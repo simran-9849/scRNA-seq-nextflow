@@ -243,11 +243,11 @@ process STARSOLO_COMPLEX_VDJ {
     tuple val(meta), path('*Log.final.out')                                                 , emit: log_final
     tuple val(meta), path('*Log.out')                                                       , emit: log_out
     tuple val(meta), path('*Log.progress.out')                                              , emit: log_progress
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_filtered")               , emit: filteredDir
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_raw")                    , emit: rawDir
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.Summary.unique.csv")            , emit: summary_unique
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt")   , emit: UMI_file_unique
-    tuple val(meta), path("${meta.id}_${meta.feature_types}.CellReads.stats")               , emit: cellReads_stats
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_filtered")               , emit: filteredDir,     optional: true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.matrix_raw")                    , emit: rawDir,          optional: true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.Summary.unique.csv")            , emit: summary_unique,  optional: true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt")   , emit: UMI_file_unique, optional: true
+    tuple val(meta), path("${meta.id}_${meta.feature_types}.CellReads.stats")               , emit: cellReads_stats, optional: true
 
     tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
     tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript

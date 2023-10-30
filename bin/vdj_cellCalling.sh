@@ -176,7 +176,7 @@ then
 else
     CB_reads=$(mktemp -p ./)
     samtools view -@ $threads -D ${CBtag}:${gexBarcode} $inputBAM |
-        awk '
+        awk -v CBtag=$CBtag -v UMItag=$UMItag '
         BEGIN{
             CBpattern=CBtag":Z:"
             UMIpattern=UMItag":Z:"
