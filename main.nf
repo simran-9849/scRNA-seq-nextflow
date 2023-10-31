@@ -74,41 +74,25 @@ workflow scRNAseq {
 
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
-    ch_whitelist = file(params.whitelist)
 
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_starsolo_out               = Channel.empty()
     ch_star_multiqc               = Channel.empty()
-    if(params.soloType == "CB_UMI_Complex"){
-        if (!params.barcodelist) { exit 1, 'Please provide barcodelist parameter to use STARSOLO_COMPLEX process!' }
-        ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
-        STARSOLO_COMPLEX(
-            ch_cDNA_read,
-            ch_bc_read,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_barcodelist.toList()
-        )
-        ch_genome_bam       = STARSOLO_COMPLEX.out.bam
-        ch_genome_bam_index = STARSOLO_COMPLEX.out.bai
-        ch_filteredDir      = STARSOLO_COMPLEX.out.filteredDir
-        ch_starsolo_summary = STARSOLO_COMPLEX.out.summary_unique
-        ch_starsolo_UMI     = STARSOLO_COMPLEX.out.UMI_file_unique
-    }else{
-        STARSOLO(
-            ch_cDNA_read,
-            ch_bc_read,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_whitelist
-        )
-        ch_genome_bam       = STARSOLO.out.bam
-        ch_genome_bam_index = STARSOLO.out.bai
-        ch_filteredDir      = STARSOLO.out.filteredDir
-        ch_starsolo_summary = STARSOLO.out.summary_unique
-        ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
-    }
+
+    ch_whitelist = Channel.fromPath(params.whitelist.split(" ").toList())
+    STARSOLO(
+        ch_cDNA_read,
+        ch_bc_read,
+        ch_genomeDir,
+        ch_genomeGTF,
+        ch_whitelist.toList()
+    )
+    ch_genome_bam       = STARSOLO.out.bam
+    ch_genome_bam_index = STARSOLO.out.bai
+    ch_filteredDir      = STARSOLO.out.filteredDir
+    ch_starsolo_summary = STARSOLO.out.summary_unique
+    ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
 
     if(params.soloMultiMappers != "Unique"){
         STARSOLO_MULTIPLE(
@@ -187,7 +171,7 @@ workflow mkref {
 // sub-workflow for vdj analysis
 
 include { CAT_TRIM_FASTQ_VDJ } from "./vdj/cat_trim_fastq_vdj"
-include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ; STARSOLO_COMPLEX_VDJ } from "./vdj/starsolo_vdj"
+include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ; } from "./vdj/starsolo_vdj"
 include { QUALIMAP_VDJ } from "./vdj/qualimap_vdj"
 include { CHECK_SATURATION_VDJ } from "./vdj/sequencing_saturation_vdj.nf"
 include { TRUST4_VDJ; VDJ_METRICS } from "./vdj/trust4_vdj"
@@ -277,7 +261,6 @@ workflow vdj_process {
 
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
-    ch_whitelist = file(params.whitelist)
     ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
     ch_vdj_imgt_fasta = file(params.trust4_vdj_imgt_fasta)
 
@@ -292,38 +275,21 @@ workflow vdj_process {
     // force using parameters for 5'-RNAseq
     //params.soloStrand = "Reverse"
 
-    if(params.soloType == "CB_UMI_Complex"){
-        // barcodelist will be required for complex mode
-        if (!params.barcodelist) { exit 1, 'Please provide barcodelist parameter to use STARSOLO_COMPLEX process!' }
-        ch_barcodelist = Channel.fromPath(params.barcodelist.split(" ").toList())
-        STARSOLO_COMPLEX_VDJ(
-            ch_cDNA_read,
-            ch_bc_read,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_barcodelist.toList(),
-        )
-        ch_genome_bam           = STARSOLO_COMPLEX_VDJ.out.bam_sorted
-        ch_genome_bam_index     = STARSOLO_COMPLEX_VDJ.out.bai
-        ch_starsolo_filteredDir = STARSOLO_COMPLEX_VDJ.out.filteredDir
-        ch_starsolo_summary     = STARSOLO_COMPLEX_VDJ.out.summary_unique
-        ch_starsolo_umi         = STARSOLO_COMPLEX_VDJ.out.UMI_file_unique
+    ch_whitelist = Channel.fromPath(params.whitelist.split(" ").toList())
 
-    }else{
-        STARSOLO_VDJ(
-            ch_cDNA_read,
-            ch_bc_read,
-            ch_genomeDir,
-            ch_genomeGTF,
-            ch_whitelist,
-        )
-        ch_genome_bam           = STARSOLO_VDJ.out.bam_sorted
-        ch_genome_bam_index     = STARSOLO_VDJ.out.bai
-        ch_starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
-        ch_starsolo_summary     = STARSOLO_VDJ.out.summary_unique
-        ch_starsolo_umi         = STARSOLO_VDJ.out.UMI_file_unique
+    STARSOLO_VDJ(
+        ch_cDNA_read,
+        ch_bc_read,
+        ch_genomeDir,
+        ch_genomeGTF,
+        ch_whitelist.toList(),
+    )
+    ch_genome_bam           = STARSOLO_VDJ.out.bam_sorted
+    ch_genome_bam_index     = STARSOLO_VDJ.out.bai
+    ch_starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
+    ch_starsolo_summary     = STARSOLO_VDJ.out.summary_unique
+    ch_starsolo_umi         = STARSOLO_VDJ.out.UMI_file_unique
 
-    }
     
     //if(params.soloMultiMappers != "Unique"){
     //    STARSOLO_MULTIPLE_VDJ(
@@ -360,7 +326,7 @@ workflow vdj_process {
     CHECK_SATURATION_VDJ(
         ch_genome_bam,
         ch_starsolo_filteredDir,
-        ch_whitelist
+        ch_whitelist.toList()
     )
     ch_saturation_json = CHECK_SATURATION_VDJ.out.outJSON
 

@@ -45,7 +45,22 @@ process STARSOLO {
     // Since starsolo default use single-end mode, activate this label for qualimap option
     meta.single_end = true
 
+    // check CB_UMI_Complex params
+    if(params.soloType == "CB_UMI_Complex"){
+        if(!params.soloCBposition){
+            exit 1, "ERROR: soloType = 'CB_UMI_Complex' -> Please provide soloCBposition parameter!\n"
+        }
+        if(!params.soloUMIposition){
+            exit 1, "ERROR: soloType = 'CB_UMI_Complex' -> Please provide soloUMIposition parameter!\n"
+        }
+        if(params.soloCBmatchWLtype!="1MM" && params.soloCBmatchWLtype!="Exact"){
+            exit 1, "ERROR: soloType = 'CB_UMI_Complex' -> Please use 1MM or Exact for soloCBmatchWLtype!\n"
+        }
+    }
 
+    scriptString = []
+    // common starsolo options
+    scriptString.push(
     """
     ## Added "--outBAMsortingBinsN 300" option to solve sorting RAM issue when BAM is too large
     ## Refer to: https://github.com/alexdobin/STAR/issues/870
@@ -54,16 +69,11 @@ process STARSOLO {
     --sjdbGTFfile $gtf \\
     --soloBarcodeMate 0 \\
     --readFilesIn $cDNA_read $bc_read \\
-    --outFileNamePrefix ${prefix}. \\
-    --soloStrand $params.soloStrand \\
-    --soloCBstart $params.soloCBstart \\
-    --soloCBlen $params.soloCBlen \\
-    --soloUMIstart $params.soloUMIstart \\
-    --soloUMIlen $params.soloUMIlen \\
     --soloCBwhitelist $whitelist \\
     --soloBarcodeReadLength 0 \\
     --readFilesCommand zcat \\
-    --soloType $params.soloType \\
+    --outFileNamePrefix ${prefix}. \\
+    --soloStrand $params.soloStrand \\
     --clipAdapterType $params.clipAdapterType \\
     --outFilterScoreMin $params.outFilterScoreMin \\
     --soloCBmatchWLtype $params.soloCBmatchWLtype \\
@@ -74,9 +84,40 @@ process STARSOLO {
     --soloCellFilter $params.soloCellFilter \\
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate \\
-    --outBAMsortingBinsN 300
+    --outSAMtype ${params.outSAMtype} \\
+    --outSAMunmapped ${params.outSAMunmapped}
+    --outBAMsortingBinsN 300 \\
+    """.stripIndent()
+    )
 
+    if(params.soloType == "CB_UMI_Complex"){
+    scriptString.push(
+    """\
+    --soloType $params.soloType \\
+    --soloCBposition $params.soloCBposition \\
+    --soloUMIposition $params.soloUMIposition \\
+    --soloAdapterSequence $params.soloAdapterSequence \\
+    --soloAdapterMismatchesNmax $params.soloAdapterMismatchesNmax
+    
+    """.stripIndent()
+    )
+    }else if(params.soloType == "CB_UMI_Simple"){
+    scriptString.push(
+    """\
+    --soloType $params.soloType \\
+    --soloCBstart $params.soloCBstart \\
+    --soloCBlen $params.soloCBlen \\
+    --soloUMIstart $params.soloUMIstart \\
+    --soloUMIlen $params.soloUMIlen
+    
+    """.stripIndent()
+    )
+    }else{
+        exit 1, "soloType only support CB_UMI_Simple and CB_UMI_Complex for now."
+    }
+    
+    scriptString.push(
+    """
     samtools index ${prefix}.Aligned.sortedByCoord.out.bam
 
     pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/raw/*
@@ -84,83 +125,8 @@ process STARSOLO {
     cp ${prefix}.Solo.out/${params.soloFeatures}/Summary.csv Summary.unique.csv
     cp ${prefix}.Solo.out/${params.soloFeatures}/UMIperCellSorted.txt UMIperCellSorted.unique.txt
     """
-}
-
-process STARSOLO_COMPLEX {
-    tag "${meta.id}"
-    label 'process_high'
-    publishDir "${params.outdir}/starsolo/${meta.id}",
-        mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
-
-    input:
-    tuple val(meta), path(cDNA_read)
-    tuple val(meta), path(bc_read)
-    path index
-    path gtf
-    path whitelist
-
-    output:
-    tuple val(meta), path('*d.out.bam')                                            , emit: bam
-    tuple val(meta), path('*d.out.bam.bai')                                        , emit: bai
-    tuple val(meta), path('*Log.final.out')                                        , emit: log_final
-    tuple val(meta), path('*Log.out')                                              , emit: log_out
-    tuple val(meta), path('*Log.progress.out')                                     , emit: log_progress
-    tuple val(meta), path("*Solo.out/${params.soloFeatures}/filtered")             , emit: filteredDir
-    tuple val(meta), path("*Solo.out/${params.soloFeatures}/raw")                  , emit: rawDir
-    tuple val(meta), path('Summary.unique.csv')                                    , emit: summary_unique
-    tuple val(meta), path('UMIperCellSorted.unique.txt')                           , emit: UMI_file_unique
-    tuple val(meta), path("*Solo.out/${params.soloFeatures}/CellReads.stats")      , emit: cellReads_stats
-
-    tuple val(meta), path('*sortedByCoord.out.bam')  , optional:true, emit: bam_sorted
-    tuple val(meta), path('*toTranscriptome.out.bam'), optional:true, emit: bam_transcript
-    tuple val(meta), path('*Aligned.unsort.out.bam') , optional:true, emit: bam_unsorted
-    tuple val(meta), path('*fastq.gz')               , optional:true, emit: fastq
-    tuple val(meta), path('*.tab')                   , optional:true, emit: tab
-
-    script:
-    def prefix     = "${meta.id}"
-    //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
-    // Since starsolo default use single-end mode, activate this label for qualimap option
-    meta.single_end = true
-    """
-    ## Added "--outBAMsortingBinsN 300" option to solve sorting RAM issue when BAM is too large
-    ## Refer to: https://github.com/alexdobin/STAR/issues/870
-    STAR --runThreadN $task.cpus \\
-    --genomeDir $index \\
-    --sjdbGTFfile $gtf \\
-    --soloBarcodeMate 0 \\
-    --readFilesIn $cDNA_read $bc_read \\
-    --soloBarcodeReadLength 0 \\
-    --readFilesCommand zcat \\
-    --outFileNamePrefix ${prefix}. \\
-    --soloStrand $params.soloStrand \\
-    --soloType $params.soloType \\
-    --soloCBposition $params.soloCBposition \\
-    --soloUMIposition $params.soloUMIposition \\
-    --soloAdapterSequence $params.soloAdapterSequence \\
-    --soloAdapterMismatchesNmax $params.soloAdapterMismatchesNmax \\
-    --soloCBwhitelist $whitelist \\
-    --clipAdapterType $params.clipAdapterType \\
-    --outFilterScoreMin $params.outFilterScoreMin \\
-    --soloCBmatchWLtype $params.soloCBmatchWLtype \\
-    --soloUMIfiltering $params.soloUMIfiltering \\
-    --soloUMIdedup $params.soloUMIdedup \\
-    --soloMultiMappers $params.soloMultiMappers \\
-    --soloFeatures $params.soloFeatures \\
-    --soloCellFilter $params.soloCellFilter \\
-    --soloCellReadStats Standard \\
-    --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \\
-    --outSAMtype BAM SortedByCoordinate \\
-    --outBAMsortingBinsN 300
-    
-    samtools index *.bam
-
-    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/raw/*
-    pigz -p $task.cpus ${prefix}.Solo.out/${params.soloFeatures}/filtered/*
-    cp ${prefix}.Solo.out/${params.soloFeatures}/Summary.csv Summary.unique.csv
-    cp ${prefix}.Solo.out/${params.soloFeatures}/UMIperCellSorted.txt UMIperCellSorted.unique.txt
-    """
+    )
+    scriptString.reverse().join()
 }
 
 process STAR_MKREF {
