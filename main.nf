@@ -7,7 +7,7 @@ nextflow.enable.dsl=2
 // NF-CORE MODULES
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
-include { STARSOLO; STARSOLO_COMPLEX; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MULT_SUMMARY; STARSOLO_MULT_UMI } from "./starsolo"
+include { STARSOLO; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MULT_SUMMARY; STARSOLO_MULT_UMI } from "./starsolo"
 include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
 include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
 include { CHECK_SATURATION } from "./sequencing_saturation"
