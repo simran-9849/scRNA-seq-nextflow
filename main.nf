@@ -101,7 +101,7 @@ workflow scRNAseq {
         CHECK_SATURATION(
             ch_genome_bam,
             STARSOLO_MULTIPLE.out.filteredDir,
-            ch_whitelist
+            ch_whitelist.toList()
         )
         STARSOLO_MULT_SUMMARY(
             STARSOLO.out.cellReads_stats,
@@ -119,7 +119,7 @@ workflow scRNAseq {
         CHECK_SATURATION(
             ch_genome_bam,
             ch_filteredDir,
-            ch_whitelist
+            ch_whitelist.toList()
         )
         GET_VERSIONS(
             CHECK_SATURATION.out.outJSON
