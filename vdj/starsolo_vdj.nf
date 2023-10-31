@@ -146,7 +146,9 @@ process STARSOLO_VDJ {
         then
             ## Create fake summary csv file and UMI file
             touch ${meta.id}_${meta.feature_types}.Summary.unique.csv
-        
+            touch ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+            touch ${meta.id}_${meta.feature_types}.CellReads.stats
+
             ## calculate total reads and valid barcodes
             totalReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | wc -l)
             validBCReads=\$(samtools view -@ ${task.cpus} -F 0x100 -F 0x800 ${prefix}.Aligned.sortedByCoord.out.bam | awk '{cb=\$0; gsub(/.*${CBtag}:Z:/, "", cb); gsub(/\\t.*\$/, "", cb); print \$1"\\t"cb}' | awk '\$2!="-"' | wc -l)
@@ -155,6 +157,8 @@ process STARSOLO_VDJ {
             echo "Reads With Valid Barcodes,\$validBCRatio" >>  ${meta.id}_${meta.feature_types}.Summary.unique.csv
         else
             cp ${prefix}.Solo.out/*/Summary.csv ${meta.id}_${meta.feature_types}.Summary.unique.csv
+            cp ${prefix}.Solo.out/*/UMIperCellSorted.txt ${meta.id}_${meta.feature_types}.UMIperCellSorted.unique.txt
+            cp ${prefix}.Solo.out/Gene*/CellReads.stats ${meta.id}_${meta.feature_types}.CellReads.stats
         fi
         """.stripIndent()
         )
