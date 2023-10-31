@@ -15,6 +15,7 @@ expectedCells=3000
 percentile=0.95
 umi_fold=10
 threads=10
+downSampleCount=50000
 CBtag="CB" ## tag used to extract CB from BAM
 UMItag="UB" ## tag used to extract UMI from BAM, if UMItag="None", then reads will be used directly
 kneeDataOut="kneeOut.tsv"
@@ -39,7 +40,8 @@ usage(){
 	  --readIDout readID.lst \\
 	  --barcode_fasta barcode.fa \\
 	  --umi_fasta umi.fa \\
-	  --threads 10
+	  --threads 10 \\
+	  --downSample 50000
 
 	Dependency:
 	  samtools, bedtools
@@ -109,6 +111,10 @@ do
             ;;
         "--UMItag")
             UMItag=$2
+            shift 2
+            ;;
+        "--downSample")
+            downSampleCount=$2
             shift 2
             ;;
         *)
@@ -219,7 +225,7 @@ fi
 ## Extract cell reads ID
 ## Downsample if there are more than 50,000 reads for a cell
 readID_down=$(mktemp -p ./)
-awk '
+awk -v downSampleCount=$downSampleCount '
     ARGIND==1{
         bc[$1]
     }
@@ -232,7 +238,7 @@ awk '
             umi_idx=umi_idx+1
             UMI=$2
         }
-        if(($1 in bc) && umi_idx<=50000){
+        if(($1 in bc) && umi_idx<=downSampleCount){
             print
         }
     }

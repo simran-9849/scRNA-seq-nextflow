@@ -82,7 +82,8 @@ process TRUST4_VDJ {
             --umi_fasta ${it}_umi.fa \\
             --threads ${task.cpus} \\
             --CBtag ${CBtag} \\
-            --UMItag ${UMItag}
+            --UMItag ${UMItag} \\
+            --downSample ${params.trust4_downSample}
             
             ## extract trust4 input reads
             seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
@@ -137,7 +138,8 @@ process TRUST4_VDJ {
             --umi_fasta ${it}_umi.fa \\
             --threads ${task.cpus} \\
             --CBtag ${CBtag} \\
-            --UMItag ${UMItag}
+            --UMItag ${UMItag} \\
+            --downSample ${params.trust4_downSample}
             
             ## extract trust4 input reads
             seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
