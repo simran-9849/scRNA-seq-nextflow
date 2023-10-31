@@ -85,7 +85,7 @@ process STARSOLO {
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
     --outSAMtype ${params.outSAMtype} \\
-    --outSAMunmapped ${params.outSAMunmapped}
+    --outSAMunmapped ${params.outSAMunmapped} \\
     --outBAMsortingBinsN 300 \\
     """.stripIndent()
     )
