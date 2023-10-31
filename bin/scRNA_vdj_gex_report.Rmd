@@ -75,6 +75,8 @@ library(reshape2)
 library(ComplexHeatmap)
 library(seqinr)
 library(stringi)
+library(patchwork)
+library(htmltools)
 
 set.seed(1234)
 plan(multisession, workers = as.numeric(params$nCPUs))
@@ -97,22 +99,6 @@ config_plotly_fig <- function(fig, ...){
         toImageButtonOptions = list(height= NULL, width= NULL, scale= 2),
         ...
     )
-}
-
-## define info icon funciton
-infoIcon <- function(info,
-                     class = "fa fa-info-circle",
-                     style="font-size: 1.25rem; color: #545b62;"){
-  ## Make HTML
-  outTag <- paste0('<i class="',
-                   class,
-                   '" aria-hidden="true" ',
-                   'data-tippy-content="',
-                   info,
-                   '" ',
-                   'style="',
-                   style,'"></i>')
-  return(HTML(outTag))
 }
 
 
@@ -141,16 +127,76 @@ if(include_gex && !params$withUMI){
 }
 ```
 
+
+```{r infoIcon, include = FALSE}
+infoIcon <- function(targetEl, size = "1.2rem"){
+    querySelector <- paste0("#", targetEl)
+  ## Make HTML
+  outTag <- tags$i(
+      bsicons::bs_icon("question-circle-fill",
+              size = size,
+              fill = "var(--bs-primary)"),
+      `data-bs-toggle`="modal",
+      `data-bs-target`=querySelector
+  )
+  return(outTag)
+}
+
+createModal <- function(Id, expl_tbl){
+    contentTag <- expl_tbl %>%
+        apply(1, FUN=function(x){
+            tagList(
+                h5(HTML(x[1])), 
+                p(HTML(x[2]))
+            )
+        }) %>% 
+        tagList()
+
+   outTag <- div(
+       class = "modal fade",
+       id = Id,
+       tabindex = -1,
+       `aria-labelledby`="exampleModalLabel",
+       `aria-hidden`="true",
+       div(
+           class = "modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg",
+           div(
+               class = "modal-content",
+               div(
+                   class = "modal-body",
+                   div(
+                       class = "explanation",
+                       contentTag
+                   )
+               )
+           )
+       )
+   )
+   return(outTag)
+}
+```
+
+```{css}
+.explanation {
+  background-color: rgba(var(--bs-secondary-rgb), 0.4); 
+  border-radius: var(--bs-modal-border-radius);
+  padding: 1rem
+}
+```
+
+
 ```{r include = FALSE}
 ## lineage stats
 ## get lineage information
 ## defined as the same VDJ segements, identical CDR3 length and > 80% CDR3 nt identity
-getLineage <- function(cells, barcode_report){
+getLineage <- function(cells, barcode_report, airr_report){
     d <- read_tsv(barcode_report) %>%
         dplyr::rename("barcode" = "#barcode") %>%
         select(barcode, chain1, chain2) %>% 
         filter(barcode %in% cells) %>%
         filter(chain1 != "*", chain2 !="*")
+    d$chain1_contig <- strsplit(d$chain1,",") %>% sapply("[", 8)
+    d$chain2_contig <- strsplit(d$chain2,",") %>% sapply("[", 8)
     
     d$chain1_V <- strsplit(d$chain1,",") %>% sapply("[",1) %>% str_remove("\\*[0-9]+$")
     d$chain1_D <- strsplit(d$chain1,",") %>% sapply("[",2) %>% str_remove("\\*[0-9]+$")
@@ -162,7 +208,31 @@ getLineage <- function(cells, barcode_report){
     d$chain2_J <- strsplit(d$chain2,",") %>% sapply("[",3) %>% str_remove("\\*[0-9]+$")
     d$chain2_cdr3 <- strsplit(d$chain2,",") %>% sapply("[",5)
     
-    d0 <- d %>% mutate(cdrh3_len = str_length(chain1_cdr3)) %>%
+    airr <- read_tsv(airr_report) %>%
+        select(sequence_id, sequence, cdr1, cdr2, complete_vdj, productive)
+    
+    d <- d %>% 
+        left_join(airr, by = c("chain1_contig" = "sequence_id")) %>%
+        dplyr::rename(
+            "chain1_contigSeq" = "sequence",
+            "chain1_cdr1" = "cdr1",
+            "chain1_cdr2" = "cdr2",
+            "chain1_complete" = "complete_vdj",
+            "chain1_productive" = "productive"
+        ) %>%
+        left_join(airr, by = c("chain2_contig" = "sequence_id")) %>%
+        dplyr::rename(
+            "chain2_contigSeq" = "sequence",
+            "chain2_cdr1" = "cdr1",
+            "chain2_cdr2" = "cdr2",
+            "chain2_complete" = "complete_vdj",
+            "chain2_productive" = "productive"
+        )
+    
+    ## filter d to only retain the cells with the productive chains
+    d0 <- d %>% 
+        filter(chain1_productive == TRUE, chain2_productive == TRUE) %>%
+        mutate(cdrh3_len = str_length(chain1_cdr3)) %>%
         group_by(chain1_V, chain1_D, chain1_J, chain2_V, chain2_D, chain2_J, cdrh3_len) %>% 
         group_split()
     
@@ -715,6 +785,16 @@ plot_lineages=function(barcode_report_file, airr_report_file){
 ```
 
 
+```{r modal, echo = FALSE}
+expl_tbl <- tribble(
+    ~title, ~content,
+    "GEX Association",
+    "Detected BCR CDR3 clones were projected to cells' UMAP-plot."
+)
+createModal("gexAssociation", expl_tbl)
+```
+
+
 `r if(!include_gex){"\\begin{comment}"} else {NULL}`
 
 ```{r process_gex, include = FALSE, eval = include_gex}
@@ -807,6 +887,7 @@ if(filtered_cells >= 150){
     ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
 }
 ```
+
 
 
 GEX {data-orientation=rows}
@@ -1306,7 +1387,7 @@ vdj_t_tbl %>%
 Row
 ----------
 
-### GEX Association
+### GEX Association `r infoIcon("gexAssociation")`
 
 ```{r eval = (include_tcr & include_gex)}
 ## Only plot cluster when there are more than 150 filtered cells
@@ -1410,7 +1491,11 @@ Row {data-height=400}
 
 ```{r eval = include_tcr}
 tcr_lineageInfo <- getLineage(cells = vdj_t_cells$CB,
-                              barcode_report = params$VDJ_T_report)
+                              barcode_report = params$VDJ_T_report,
+                              airr_report = params$VDJ_T_airr)
+                              
+write_tsv(tcr_lineageInfo, file = paste0(params$sampleName, "_TCR_resOut.tsv"))
+
 tcr_pairing_clones <- tcr_lineageInfo %>%
     select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
            chain2_V, chain2_J, chain2_cdr3) %>%
@@ -1672,7 +1757,7 @@ vdj_b_tbl %>%
 Row
 ----------
 
-### GEX Association
+### GEX Association `r infoIcon("gexAssociation")`
 
 ```{r eval = (include_bcr & include_gex)}
 ## Only plot cluster when there are more than 150 filtered cells
@@ -1775,7 +1860,11 @@ Row {data-height=400}
 
 ```{r eval = include_bcr}
 bcr_lineageInfo <- getLineage(cells = vdj_b_cells$CB,
-                              barcode_report = params$VDJ_B_report)
+                              barcode_report = params$VDJ_B_report,
+                              airr_report = params$VDJ_B_airr)
+
+write_tsv(bcr_lineageInfo, file = paste0(params$sampleName, "_BCR_resOut.tsv"))
+
 bcr_pairing_clones <- bcr_lineageInfo %>%
     select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
            chain2_V, chain2_J, chain2_cdr3) %>%
@@ -1823,13 +1912,22 @@ lineage_tbl %>%
 ### Lineage Plots
 
 
-```{r eval = include_bcr, echo=FALSE, out.width="49%", fig.show="hold"}
-info = c(bcr_lineageInfo %>% filter(lineageType == "single") %>% nrow(), 
-         bcr_lineageInfo %>% filter(lineageType == "multiple") %>% nrow())
-piepercent = c(paste0(round(info[1]/sum(info),4)*100,"%"), 
-               paste0(round(info[2]/sum(info),4)*100,"%"))
-names = c("Cell in Expanded Lineages", 
-          "Cell in Singleton Lineages")
+```{r eval = include_bcr, fig.width = 7, fig.height=3.5}
+pie_d <- bcr_lineageInfo %>% ungroup %>% 
+    group_by(lineageType) %>%
+    summarize(count = n()) %>%
+    dplyr::mutate(
+        labels = case_when(
+            lineageType == "single" ~ "Cell in Singleton Lineages",
+            lineageType == "multiple" ~ "Cell in Expanded Lineages"
+        )
+    )
+total <- sum(pie_d$count)
+pie_d <- pie_d %>%
+    mutate(
+        percentage = count/total,
+        percentage = label_percent(0.01)(percentage)
+    )
 
 LineageCellNumber <- bcr_lineageInfo %>% 
     filter(lineageType == "multiple") %>%
@@ -1840,14 +1938,22 @@ LineageCellNumber <- bcr_lineageInfo %>%
 if(nrow(LineageCellNumber)>50){
     LineageCellNumber <- LineageCellNumber[1:50, ]
 }
-bar_plot = data.frame(rank=1:nrow(LineageCellNumber),
-                      cellNum = LineageCellNumber$count)
+barplot_d <- tibble(rank=1:nrow(LineageCellNumber),
+                    cellNum = LineageCellNumber$count)
 
-cols = c("#3f48CC","grey")
-pie(info,labels=piepercent,col=cols)
-legend("bottom", inset = -0.02, names, cex=0.7, fill= cols, border = "white", text.width = strwidth("cells in singleton lineages"))
+p1 <- ggplot(pie_d, aes(x = "", y = count, fill = labels))+geom_col(color = "black") +
+    geom_text(aes(label = percentage),
+                  position = position_stack(vjust = 0.5),
+                  color = "white") +
+    coord_polar(theta = "y")+
+    scale_fill_manual(values = c("#3f48CC","grey"))+
+    theme_void()+
+    theme(legend.title = element_blank(), legend.position = "top", legend.direction = "vertical")
 
-barplot(bar_plot$cellNum, names.arg = bar_plot$rank, xlab = "Multi-cell Lineages", ylab = "Cell Count", col = "#3f48CC")
+p2 <- ggplot(barplot_d, aes(x=rank, y = cellNum))+geom_bar(stat = "identity", fill = "#3f48CC", color = "black")+
+    xlab("Multi-cell Lineages") + ylab("Cell Count") +
+    theme_classic()
+p1+p2
 ```
 
 
