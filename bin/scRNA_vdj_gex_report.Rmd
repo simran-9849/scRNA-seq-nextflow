@@ -130,7 +130,7 @@ if(include_gex && !params$withUMI){
 
 ```{r infoIcon, include = FALSE}
 infoIcon <- function(targetEl, size = "1.2rem"){
-    querySelector <- paste0("#", targetEl)
+  querySelector <- paste0("#", targetEl)
   ## Make HTML
   outTag <- tags$i(
       bsicons::bs_icon("question-circle-fill",
@@ -146,7 +146,7 @@ createModal <- function(Id, expl_tbl){
     contentTag <- expl_tbl %>%
         apply(1, FUN=function(x){
             tagList(
-                h5(HTML(x[1])), 
+                h6(HTML(x[1]), style="font-weight:700;"),
                 p(HTML(x[2]))
             )
         }) %>% 
@@ -178,7 +178,7 @@ createModal <- function(Id, expl_tbl){
 
 ```{css}
 .explanation {
-  background-color: rgba(var(--bs-secondary-rgb), 0.4); 
+  background-color: rgba(var(--bs-secondary-rgb), 0.2); 
   border-radius: var(--bs-modal-border-radius);
   padding: 1rem
 }
@@ -585,6 +585,9 @@ extract_cdr_end <- function(vdj_seq, cdr_seq){
       cdr3_min_start <- cdr3_start
       cdr3_max_end <- cdr3_end
   }
+  if(cdr3_max_end > 125){
+      cdr3_max_end <- cdr3_end
+  }
   
   p <- ggplot(data = dt_final, 
               mapping = aes(x=length_aa, y = median_reads)) + 
@@ -798,9 +801,60 @@ plot_lineages=function(barcode_report_file, airr_report_file){
 expl_tbl <- tribble(
     ~title, ~content,
     "GEX Association",
-    "Detected BCR CDR3 clones were projected to cells' UMAP-plot."
+    "Detected BCR CDR3 clones were projected to cells' UMAP-plot, only paired productive clones were shown."
 )
 createModal("gexAssociation", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Knee Plot",
+    'Knee Plot was also called as Barcode Rank Plot. The plot shows total UMI (y axis) of each associated barcode (x axis). Foreground cells were selected via cell-calling per "Knee point" as typical scRNAseq experiment, Target (e.g. B/T) cells were further deterimined by their target mRNA UMI (e.g. VDJ UMI) counts (>3). For B or T cells, we also require their expressed BCR/TCRs to be productive.'
+)
+createModal("VDJ_kneePlot", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Median IGH UMIs per Cell",
+    "Median number of UMIs used to assemble IGH contig.",
+    "Median IGK/L UMIs per Cell",
+    "Median number of UMIs used to assemble IGK or IGL contig.",
+    "Cells with Productive IGH",
+    'Number of cells with a productive IGH contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive IGK",
+    'Number of cells with a productive IGK contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive IGL",
+    'Number of cells with a productive IGL contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive IGKIGH pair",
+    'Number of cells with both a productive IGK contig and a productie IGH contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive IGLIGH pair",
+    'Number of cells with both a productive IGL contig and a productie IGH contig assembled, see below for the definition of the "productive".',
+    "Productive",
+    "We follow the <a href='https://docs.airr-community.org/en/v1.5.0/datarep/rearrangements.html#productive'><b>AIRR Standards</b></a> to define productive BCR/TCR: <li>Coding region has an open reading frame</li><li>No defect in the start codon, splicing sites or regulatory elements.</li><li>No internal stop codons.</li><li>An in-frame junction region.</li>"
+)
+createModal("BCR_annotation", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Median TRB/TRD UMIs per Cell",
+    "Median number of UMIs used to assemble TRB or TRD contig.",
+    "Median TRA/TRG UMIs per Cell",
+    "Median number of UMIs used to assemble TRA or TRG contig.",
+    "Cells with Productive TRB",
+    'Number of cells with a productive TRB contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive TRD",
+    'Number of cells with a productive TRD contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive TRA",
+    'Number of cells with a productive TRA contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive TRG",
+    'Number of cells with a productive TRG contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive TRATRB pair",
+    'Number of cells with both a productive TRA contig and a productie TRB contig assembled, see below for the definition of the "productive".',
+    "Cells with Productive TRGTRD pair",
+    'Number of cells with both a productive TRG contig and a productie TRD contig assembled, see below for the definition of the "productive".',
+    "Productive",
+    "We follow the <a href='https://docs.airr-community.org/en/v1.5.0/datarep/rearrangements.html#productive'><b>AIRR Standards</b></a> to define productive BCR/TCR: <li>Coding region has an open reading frame</li><li>No defect in the start codon, splicing sites or regulatory elements.</li><li>No internal stop codons.</li><li>An in-frame junction region.</li>"
+)
+createModal("TCR_annotation", expl_tbl)
 ```
 
 
@@ -1336,7 +1390,7 @@ vdj_t_tbl %>%
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### Knee Plot
+### Knee Plot `r infoIcon("VDJ_kneePlot")`
 
 ```{r eval = include_tcr}
 cellNum <- as.numeric(vdj_t_metrics$cells)
@@ -1615,11 +1669,11 @@ p1 <- ggplot(pie_d, aes(x = "", y = count, fill = labels))+geom_col(color = "bla
                   position = position_stack(vjust = 0.5),
                   color = "white") +
     coord_polar(theta = "y")+
-    scale_fill_manual(values = c("#3f48CC","grey"))+
+    scale_fill_manual(values = c("#4169E1","grey"))+
     theme_void()+
     theme(legend.title = element_blank(), legend.position = "top", legend.direction = "vertical")
 
-p2 <- ggplot(barplot_d, aes(x=rank, y = cellNum))+geom_bar(stat = "identity", fill = "#3f48CC", color = "black")+
+p2 <- ggplot(barplot_d, aes(x=rank, y = cellNum))+geom_bar(stat = "identity", fill = "#4169E1", color = "black")+
     xlab("Multi-cell Lineages") + ylab("Cell Count") +
     theme_classic()
 p1+p2
@@ -1751,7 +1805,7 @@ vdj_b_tbl %>%
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### Knee Plot
+### Knee Plot `r infoIcon("VDJ_kneePlot")`
 
 ```{r eval = include_bcr}
 cellNum <- as.numeric(vdj_b_metrics$cells)
@@ -1809,7 +1863,7 @@ vdj_b_tbl %>%
     kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### V(D)J Annotation
+### V(D)J Annotation `r infoIcon("BCR_annotation")`
 
 ```{r eval = include_bcr}
 ##Cells with productive V-J spanning pair
@@ -2030,11 +2084,11 @@ p1 <- ggplot(pie_d, aes(x = "", y = count, fill = labels))+geom_col(color = "bla
                   position = position_stack(vjust = 0.5),
                   color = "white") +
     coord_polar(theta = "y")+
-    scale_fill_manual(values = c("#3f48CC","grey"))+
+    scale_fill_manual(values = c("#4169E1","grey"))+
     theme_void()+
     theme(legend.title = element_blank(), legend.position = "top", legend.direction = "vertical")
 
-p2 <- ggplot(barplot_d, aes(x=rank, y = cellNum))+geom_bar(stat = "identity", fill = "#3f48CC", color = "black")+
+p2 <- ggplot(barplot_d, aes(x=rank, y = cellNum))+geom_bar(stat = "identity", fill = "#4169E1", color = "black")+
     xlab("Multi-cell Lineages") + ylab("Cell Count") +
     theme_classic()
 p1+p2
