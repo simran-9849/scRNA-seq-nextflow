@@ -249,30 +249,32 @@ getLineage <- function(cells, barcode_report, airr_report){
     d_multiple <- d0[sapply(d0, nrow)>1]
     
     d_multiple_final <- list()
-    for(i in 1:length(d_multiple)){
-        
-        k <- d_multiple[[i]] %>% pull(chain1_cdr3)
-        aln <- as.alignment(nb = length(k), nam = 1:length(k), k)
-        aln_dist <- dist.alignment(aln, matrix = "identity",gap = T) %>% as.matrix()
-        identityM <- 1-aln_dist^2
-        
-        tr <- hclust(as.dist(1-identityM))
-        ## use cutree to define families, cutoff is 0.2 (80% identity)
-        familyIdx <- cutree(tr, h=0.2)
-        
-        if(length(unique(familyIdx))==1){
-            d_multiple_final[[length(d_multiple_final)+1]] <- d_multiple[[i]]
-        }else{
-            m <- d_multiple[[i]] %>%
-                mutate(family=as.character(familyIdx)) %>%
-                ungroup() %>%
-                group_by(family) %>%
-                group_split(.keep = FALSE)
-            for(u in 1:length(m)){
-                if(nrow(m[[u]])>1){
-                    d_multiple_final[[length(d_multiple_final)+1]] <- m[[u]]
-                }else{
-                    d_single[[length(d_single)+1]] <- m[[u]]
+    if(length(d_multiple)>0){
+        for(i in 1:length(d_multiple)){
+            
+            k <- d_multiple[[i]] %>% pull(chain1_cdr3)
+            aln <- as.alignment(nb = length(k), nam = 1:length(k), k)
+            aln_dist <- dist.alignment(aln, matrix = "identity",gap = T) %>% as.matrix()
+            identityM <- 1-aln_dist^2
+            
+            tr <- hclust(as.dist(1-identityM))
+            ## use cutree to define families, cutoff is 0.2 (80% identity)
+            familyIdx <- cutree(tr, h=0.2)
+            
+            if(length(unique(familyIdx))==1){
+                d_multiple_final[[length(d_multiple_final)+1]] <- d_multiple[[i]]
+            }else{
+                m <- d_multiple[[i]] %>%
+                    mutate(family=as.character(familyIdx)) %>%
+                    ungroup() %>%
+                    group_by(family) %>%
+                    group_split(.keep = FALSE)
+                for(u in 1:length(m)){
+                    if(nrow(m[[u]])>1){
+                        d_multiple_final[[length(d_multiple_final)+1]] <- m[[u]]
+                    }else{
+                        d_single[[length(d_single)+1]] <- m[[u]]
+                    }
                 }
             }
         }
@@ -286,12 +288,13 @@ getLineage <- function(cells, barcode_report, airr_report){
     }
     
     multipleInfo <- list()
-    for(i in 1:length(d_multiple_final)){
-        multipleInfo[[i]] <- d_multiple_final[[i]] %>%
-            mutate(lineageType = "multiple",
-                   lineageName = paste0("LM", i))
+    if(length(d_multiple_final)>0){
+        for(i in 1:length(d_multiple_final)){
+            multipleInfo[[i]] <- d_multiple_final[[i]] %>%
+                mutate(lineageType = "multiple",
+                       lineageName = paste0("LM", i))
+        }
     }
-    
     single_df <- do.call(bind_rows, singleInfo)
     multiple_df <- do.call(bind_rows, multipleInfo)
     lineageInfo <- bind_rows(single_df, multiple_df)
@@ -1661,15 +1664,21 @@ LineageCellNumber <- tcr_lineageInfo %>%
 if(nrow(LineageCellNumber)>50){
     LineageCellNumber <- LineageCellNumber[1:50, ]
 }
-barplot_d <- tibble(rank=1:nrow(LineageCellNumber),
-                    cellNum = LineageCellNumber$count)
+
+if(nrow(LineageCellNumber)>0){
+    barplot_d <- tibble(rank=1:nrow(LineageCellNumber),
+                        cellNum = LineageCellNumber$count)
+}else{
+    barplot_d <- tibble(rank=numeric(),
+                        cellNum = numeric())
+}
 
 p1 <- ggplot(pie_d, aes(x = "", y = count, fill = labels))+geom_col(color = "black") +
     geom_text(aes(label = percentage),
                   position = position_stack(vjust = 0.5),
                   color = "white") +
     coord_polar(theta = "y")+
-    scale_fill_manual(values = c("#4169E1","grey"))+
+    scale_fill_manual(values = c("Cell in Expanded Lineages" = "#4169E1", "Cell in Singleton Lineages" = "grey"))+
     theme_void()+
     theme(legend.title = element_blank(), legend.position = "top", legend.direction = "vertical")
 
@@ -2076,15 +2085,21 @@ LineageCellNumber <- bcr_lineageInfo %>%
 if(nrow(LineageCellNumber)>50){
     LineageCellNumber <- LineageCellNumber[1:50, ]
 }
-barplot_d <- tibble(rank=1:nrow(LineageCellNumber),
-                    cellNum = LineageCellNumber$count)
+
+if(nrow(LineageCellNumber)>0){
+    barplot_d <- tibble(rank=1:nrow(LineageCellNumber),
+                        cellNum = LineageCellNumber$count)
+}else{
+    barplot_d <- tibble(rank=numeric(),
+                        cellNum = numeric())
+}
 
 p1 <- ggplot(pie_d, aes(x = "", y = count, fill = labels))+geom_col(color = "black") +
     geom_text(aes(label = percentage),
                   position = position_stack(vjust = 0.5),
                   color = "white") +
     coord_polar(theta = "y")+
-    scale_fill_manual(values = c("#4169E1","grey"))+
+    scale_fill_manual(values = c("Cell in Expanded Lineages" = "#4169E1", "Cell in Singleton Lineages" = "grey"))+
     theme_void()+
     theme(legend.title = element_blank(), legend.position = "top", legend.direction = "vertical")
 
