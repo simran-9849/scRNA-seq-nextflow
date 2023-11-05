@@ -804,14 +804,14 @@ plot_lineages=function(barcode_report_file, airr_report_file){
 expl_tbl <- tribble(
     ~title, ~content,
     "GEX Association",
-    "Detected BCR CDR3 clones were projected to cells' UMAP-plot, only paired productive clones were shown."
+    "Detected BCR CDR3 clones were projected to cells' UMAP-plot, only paired productive clones were shown. Please note both of the productive and unproductive BCRs are included."
 )
 createModal("gexAssociation", expl_tbl)
 
 expl_tbl <- tribble(
     ~title, ~content,
     "Knee Plot",
-    'Knee Plot was also called as Barcode Rank Plot. The plot shows total UMI (y axis) of each associated barcode (x axis). Foreground cells were selected via cell-calling per "Knee point" as typical scRNAseq experiment, Target (e.g. B/T) cells were further deterimined by their target mRNA UMI (e.g. VDJ UMI) counts (>3). For B or T cells, we also require their expressed BCR/TCRs to be productive.'
+    'Knee Plot was also called as Barcode Rank Plot. The plot shows total UMI (y axis) of each associated barcode (x axis). Foreground cells were selected via cell-calling per "Knee point" as typical scRNAseq experiment, Target (e.g. B/T) cells were further deterimined by their target mRNA UMI (e.g. VDJ UMI) counts (>3). For B or T cells, we retained all the cells either expressing productive or unproductive BCR/TCR mRNAs.'
 )
 createModal("VDJ_kneePlot", expl_tbl)
 
