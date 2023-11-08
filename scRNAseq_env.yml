@@ -33,3 +33,4 @@ dependencies:
   - trust4>=1.0.12
   - r-seqinr
   - bioconductor-complexheatmap
+  - parallel>=20230922
