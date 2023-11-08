@@ -25,12 +25,13 @@ process TRUST4_VDJ {
     path(trust4_vdj_imgt_fasta)
 
     output:
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_toassemble_bc.fa"),                   emit: toassemble_bc
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_report.filterDiffusion.tsv"), emit: report
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_barcode_airr.tsv"),                   emit: airr
-    tuple val(meta), path("TRUST4_OUT/${meta.id}*_final.out"),                          emit: finalOut
-    tuple val(meta), path("${meta.id}*.kneeOut.tsv"), emit: kneeOut
-    tuple val(meta), path("${meta.id}*.rawCellOut.tsv"), emit: cellOut
+    tuple val(meta), path("${meta.id}*_readsAssign.out"),                    emit: readsAssign
+    tuple val(meta), path("${meta.id}*_barcode_report.filterDiffusion.tsv"), emit: report
+    tuple val(meta), path("${meta.id}*_barcode_airr.tsv"),                   emit: airr
+    tuple val(meta), path("${meta.id}*_final.out"),                          emit: finalOut
+    tuple val(meta), path("${meta.id}*_barcode.fa"),                         emit: barcode
+    tuple val(meta), path("${meta.id}*.kneeOut.tsv"),                        emit: kneeOut
+    tuple val(meta), path("${meta.id}*.rawCellOut.tsv"),                     emit: cellOut
 
     script:
     // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
@@ -65,8 +66,8 @@ process TRUST4_VDJ {
     def scriptString = []
     def vdj_featureTypes = starsoloBAM_featureTypes.collect()
     vdj_featureTypes.remove("GEX")
-    if(starsoloBAM_featureTypes.contains("GEX")){
-        vdj_featureTypes.forEach{
+    vdj_featureTypes.forEach{
+        if(starsoloBAM_featureTypes.contains("GEX")){
             scriptString.push(
             """
             ## process bam and generate input reads file
@@ -78,51 +79,15 @@ process TRUST4_VDJ {
             --kneeOut ${meta.id}_${it}.kneeOut.tsv \\
             --cellOut ${meta.id}_${it}.rawCellOut.tsv \\
             --readIDout ${it}_readID.lst \\
+            --threads ${task.cpus} \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
-            --threads ${task.cpus} \\
             --CBtag ${CBtag} \\
             --UMItag ${UMItag} \\
             --downSample ${params.trust4_downSample}
-            
-            ## extract trust4 input reads
-            seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
-            seqtk subseq ${cDNAread_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R2.fq.gz
-
-            use_cDNAread_only=${use_cDNAread_only}
-            use_UMI=${use_UMI}
-            if [[ \$use_UMI == true ]]
-            then
-                barcode_umi_opt="--barcode ${it}_barcode.fa --UMI ${it}_umi.fa"
-            else
-                barcode_umi_opt="--barcode ${it}_barcode.fa"
-            fi
-
-            if [[ \$use_cDNAread_only == false ]]
-            then
-                trust4_input_opt="-1 trust4_${it}_input.R1.fq.gz -2 trust4_${it}_input.R2.fq.gz"
-            else
-                trust4_input_opt="-u trust4_${it}_input.R2.fq.gz"
-            fi
-
-            run-trust4 -f ${trust4_vdj_refGenome_fasta} \\
-            --ref ${trust4_vdj_imgt_fasta} \\
-            -o ${meta.id}_${it} \\
-            --od TRUST4_OUT \\
-            \$trust4_input_opt \\
-            \$barcode_umi_opt \\
-            --readFormat ${params.trust4_readFormat} \\
-            --outputReadAssignment \\
-            -t ${task.cpus}
-
-            ## filter barcode by diffusion clonetypes
-            barcoderep-filter.py -b TRUST4_OUT/${meta.id}_${it}_barcode_report.tsv \\
-            -a TRUST4_OUT/${meta.id}_${it}_annot.fa > TRUST4_OUT/${meta.id}_${it}_barcode_report.filterDiffusion.tsv
             """.stripIndent()
             )
-        }
-    }else{
-        vdj_featureTypes.forEach{
+        }else{
             scriptString.push(
             """
             ## process bam and generate input reads file
@@ -134,50 +99,61 @@ process TRUST4_VDJ {
             --kneeOut ${meta.id}_${it}.kneeOut.tsv \\
             --cellOut ${meta.id}_${it}.rawCellOut.tsv \\
             --readIDout ${it}_readID.lst \\
+            --threads ${task.cpus} \\
             --barcode_fasta ${it}_barcode.fa \\
             --umi_fasta ${it}_umi.fa \\
-            --threads ${task.cpus} \\
             --CBtag ${CBtag} \\
             --UMItag ${UMItag} \\
             --downSample ${params.trust4_downSample}
             
-            ## extract trust4 input reads
-            seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
-            seqtk subseq ${cDNAread_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R2.fq.gz
-
-            use_cDNAread_only=${use_cDNAread_only}
-            use_UMI=${use_UMI}
-            if [[ \$use_UMI == true ]]
-            then
-                barcode_umi_opt="--barcode ${it}_barcode.fa --UMI ${it}_umi.fa"
-            else
-                barcode_umi_opt="--barcode ${it}_barcode.fa"
-            fi
-
-            if [[ \$use_cDNAread_only == false ]]
-            then
-                trust4_input_opt="-1 trust4_${it}_input.R1.fq.gz -2 trust4_${it}_input.R2.fq.gz"
-            else
-                trust4_input_opt="-u trust4_${it}_input.R2.fq.gz"
-            fi
-
-            run-trust4 -f ${trust4_vdj_refGenome_fasta} \\
-            --ref ${trust4_vdj_imgt_fasta} \\
-            -o ${meta.id}_${it} \\
-            --od TRUST4_OUT \\
-            \$trust4_input_opt \\
-            \$barcode_umi_opt \\
-            --readFormat ${params.trust4_readFormat} \\
-            --outputReadAssignment \\
-            -t ${task.cpus}
-
-            ## filter barcode by diffusion clonetypes
-            barcoderep-filter.py -b TRUST4_OUT/${meta.id}_${it}_barcode_report.tsv \\
-            -a TRUST4_OUT/${meta.id}_${it}_annot.fa > TRUST4_OUT/${meta.id}_${it}_barcode_report.filterDiffusion.tsv
             """.stripIndent()
             )
         }
+
+        scriptString.push(
+        """
+        ## output barcode fasta
+        cp ${it}_barcode.fa ${meta.id}_${it}_barcode.fa 
+
+        ## extract trust4 input reads
+        seqtk subseq ${bcRead_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R1.fq.gz
+        seqtk subseq ${cDNAread_map[it]} ${it}_readID.lst | pigz -p 6 > trust4_${it}_input.R2.fq.gz
+
+        use_cDNAread_only=${use_cDNAread_only}
+        use_UMI=${use_UMI}
+        if [[ \$use_UMI == true ]]
+        then
+            barcode_umi_opt="--barcode ${it}_barcode.fa --UMI ${it}_umi.fa"
+        else
+            barcode_umi_opt="--barcode ${it}_barcode.fa"
+        fi
+
+        if [[ \$use_cDNAread_only == false ]]
+        then
+            trust4_input_opt="--inputR1 trust4_${it}_input.R1.fq.gz --inputR2 trust4_${it}_input.R2.fq.gz"
+        else
+            trust4_input_opt="--inputR2 trust4_${it}_input.R2.fq.gz --R2_Only"
+        fi
+
+        singleBC_trust4.sh --genomeRef ${trust4_vdj_refGenome_fasta} \\
+               --imgtRef  ${trust4_vdj_imgt_fasta} \\
+               \$barcode_umi_opt \\
+               \$trust4_input_opt \\
+               --readFormat ${params.trust4_readFormat} \\
+               --threads ${task.cpus} \\
+               --reportOut ${meta.id}_${it}_barcode_report.tsv \\
+               --airrOut ${meta.id}_${it}_barcode_airr.tsv \\
+               --readsAssign ${meta.id}_${it}_readsAssign.out \\
+               --annotFasta ${meta.id}_${it}_annot.fa \\
+               --finalOut ${meta.id}_${it}_final.out
+
+        ## filter barcode by diffusion clonetypes
+        barcoderep-filter.py -b ${meta.id}_${it}_barcode_report.tsv \\
+        -a ${meta.id}_${it}_annot.fa > ${meta.id}_${it}_barcode_report.filterDiffusion.tsv
+        """.stripIndent()
+        )
     }
+
     scriptString.reverse().join("\n")
 }
 
@@ -202,7 +178,8 @@ process VDJ_METRICS {
     input:
     tuple val(meta), val(report_featureTypes),          path(report)
     tuple val(meta), val(airr_featureTypes),            path(airr)
-    tuple val(meta), val(toassemble_bc_featureTypes),   path(toassemble_bc)
+    tuple val(meta), val(readsAssign_featureTypes),     path(readsAssign)
+    tuple val(meta), val(barcode_featureTypes),         path(barcode)
     tuple val(meta), val(kneeOut_featureTypes),         path(kneeOut)
     tuple val(meta), val(starsoloSummary_featureTypes), path(starsoloSummary)
 
@@ -234,7 +211,8 @@ process VDJ_METRICS {
     }
     def report_map          = associate_feature_type(report_featureTypes, report)
     def airr_map            = associate_feature_type(airr_featureTypes, airr)
-    def toassemble_bc_map   = associate_feature_type(toassemble_bc_featureTypes, toassemble_bc)
+    def readsAssign_map     = associate_feature_type(readsAssign_featureTypes, readsAssign)
+    def barcode_map         = associate_feature_type(barcode_featureTypes, barcode)
     def kneeOut_map         = associate_feature_type(kneeOut_featureTypes, kneeOut)
     def starsoloSummary_map = associate_feature_type(starsoloSummary_featureTypes, starsoloSummary)
 
@@ -245,7 +223,8 @@ process VDJ_METRICS {
         """
         trust4_metrics.sh ${report_map[it]} \\
                           ${airr_map[it]} \\
-                          ${toassemble_bc_map[it]} \\
+                          ${readsAssign_map[it]} \\
+                          ${barcode_map[it]} \\
                           ${kneeOut_map[it]} \\
                           ${it} \\
                           ${starsoloSummary_map[it]} \\

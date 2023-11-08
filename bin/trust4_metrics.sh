@@ -3,7 +3,7 @@
 
 usage () {
     cat<<-EOF
-	$(basename $0) <trust4_report> <trust4_airr> <trust4_toassemble_bc> <cellType> <starsoloSummary> <metricsOutput> <kneeDataOutput> <cloneTypeResultFile>
+	$(basename $0) <trust4_report> <trust4_airr> <trust4_readsAssign> <trust4_barcodeFasta> <cellType> <starsoloSummary> <metricsOutput> <kneeDataOutput> <cloneTypeResultFile>
 	
 	This script is to perform some statistics from TRUST4 result
 	and generate a metrics json output. User will have to provide
@@ -15,7 +15,8 @@ usage () {
 	
 	example: $(basename $0) trust4_report.tsv \\
 	                        trust4_airr.tsv \\
-	                        trust4_toassemble_bc.fa \\
+	                        trust4_readsAssign.out \\
+	                        trust4_bc.fa \\
 	                        sampleID_VDJ-T.kneeData.tsv \\
 	                        VDJ-T \\
 	                        sampleID_VDJ-T.Summary.unique.csv \\
@@ -33,13 +34,14 @@ fi
 
 trust4_report=$1
 trust4_airr=$2
-trust4_toassemble_bc=$3
-kneeInput=$4
-cellType=$5
-starsolo_summary=$6
-cellOut=$7
-metricsOut=$8
-cloneTypeResult=$9
+trust4_readsAssign=$3
+trust4_bc=$4
+kneeInput=$5
+cellType=$6
+starsolo_summary=$7
+cellOut=$8
+metricsOut=$9
+cloneTypeResult=${10}
 
 sampleID=${trust4_report%%_VDJ*}
 
@@ -90,7 +92,7 @@ awk '
         CB=$1;
         print readID"\t"CB
     }
-    ' $trust4_toassemble_bc > $readCBList
+    ' $trust4_bc | awk 'ARGIND==1{a[$1]}ARGIND==2{if($1 in a){print}}' $trust4_readsAssign - > $readCBList
 readCellList=$(mktemp -p ./)
 awk 'ARGIND==1{cell[$1]}ARGIND==2{if($2 in cell){print}}' $cellBC $readCBList > $readCellList
 

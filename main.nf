@@ -216,7 +216,8 @@ workflow vdj {
         vdj_process.out.saturation_json,
         vdj_process.out.trust4_report,
         vdj_process.out.trust4_airr,
-        vdj_process.out.trust4_toassemble_bc,
+        vdj_process.out.trust4_readsAssign,
+        vdj_process.out.trust4_barcode,
         vdj_process.out.trust4_finalOut,
         vdj_process.out.trust4_kneeOut,
         vdj_process.out.trust4_cellOut
@@ -380,7 +381,8 @@ workflow vdj_process {
 
     ch_trust4_report        = TRUST4_VDJ.out.report
     ch_trust4_airr          = TRUST4_VDJ.out.airr
-    ch_trust4_toassemble_bc = TRUST4_VDJ.out.toassemble_bc
+    ch_trust4_readsAssign   = TRUST4_VDJ.out.readsAssign
+    ch_trust4_barcode       = TRUST4_VDJ.out.barcode
     ch_trust4_finalOut      = TRUST4_VDJ.out.finalOut
     ch_trust4_kneeOut       = TRUST4_VDJ.out.kneeOut
     ch_trust4_cellOut       = TRUST4_VDJ.out.cellOut
@@ -394,7 +396,8 @@ workflow vdj_process {
         saturation_json      = ch_saturation_json
         trust4_report        = ch_trust4_report
         trust4_airr          = ch_trust4_airr
-        trust4_toassemble_bc = ch_trust4_toassemble_bc
+        trust4_readsAssign   = ch_trust4_readsAssign
+        trust4_barcode       = ch_trust4_barcode
         trust4_finalOut      = ch_trust4_finalOut
         trust4_kneeOut       = ch_trust4_kneeOut
         trust4_cellOut       = ch_trust4_cellOut
@@ -409,7 +412,8 @@ workflow vdj_report {
     saturation_json
     trust4_report
     trust4_airr
-    trust4_toassemble_bc
+    trust4_readsAssign
+    trust4_barcode
     trust4_finalOut
     trust4_kneeOut
     trust4_cellOut
@@ -488,7 +492,7 @@ workflow vdj_report {
     }
     .set{ vdj_airr }
 
-    trust4_toassemble_bc
+    trust4_readsAssign
     .map {
          meta, file ->
             def tmp = []
@@ -508,7 +512,29 @@ workflow vdj_report {
             .transpose()
             .plus(0, [id:meta.id])
     }
-    .set{ vdj_toassemble_bc }
+    .set{ vdj_readsAssign }
+
+    trust4_barcode
+    .map {
+         meta, file ->
+            def tmp = []
+            if(file instanceof List){
+                tmp = file
+            }else{
+                tmp = [ file ]
+            }
+            tmp.findAll { it =~ /VDJ-[BT]/ }
+            .collect {
+                if(it =~ /VDJ-T/){
+                    ["VDJ-T", it]
+                }else if(it =~ /VDJ-B/){
+                    ["VDJ-B", it]
+                }
+            }
+            .transpose()
+            .plus(0, [id:meta.id])
+    }
+    .set{ vdj_barcode }
 
     trust4_finalOut
     .map {
@@ -557,7 +583,8 @@ workflow vdj_report {
     VDJ_METRICS(
         vdj_report,
         vdj_airr,
-        vdj_toassemble_bc,
+        vdj_readsAssign,
+        vdj_barcode,
         vdj_kneeOut,
         starsolo_summary_collapsed
     )
