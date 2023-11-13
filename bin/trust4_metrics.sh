@@ -85,14 +85,29 @@ cellNum=$(wc -l $cellBC | awk '{print $1}')
 
 ## Extract read and umi in cells
 readCBList=$(mktemp -p ./)
-awk '
+## if using UMI, trust4_readsAssign will contain reads and barcode information
+## or it will be empty
+if [[ $(wc -l $trust4_readsAssign) -gt 0 ]]
+then
+    awk '
+        $1~/^>/{
+            readID=substr($1,2);
+            getline;
+            CB=$1;
+            print readID"\t"CB
+        }
+        ' $trust4_bc |
+        awk 'ARGIND==1{a[$1]}ARGIND==2{if($1 in a){print}}' $trust4_readsAssign - > $readCBList
+else
+    awk '
     $1~/^>/{
         readID=substr($1,2);
         getline;
         CB=$1;
         print readID"\t"CB
     }
-    ' $trust4_bc | awk 'ARGIND==1{a[$1]}ARGIND==2{if($1 in a){print}}' $trust4_readsAssign - > $readCBList
+    ' $trust4_bc > $readCBList
+fi
 readCellList=$(mktemp -p ./)
 awk 'ARGIND==1{cell[$1]}ARGIND==2{if($2 in cell){print}}' $cellBC $readCBList > $readCellList
 
