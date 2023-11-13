@@ -1472,6 +1472,8 @@ if(!params$withUMI){
     vdj_t_tbl$term[which(vdj_t_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
 
+vdj_t_stats <- vdj_t_tbl
+
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
@@ -1529,6 +1531,9 @@ vdj_t_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+                         
+vdj_t_sequencing_stats <- vdj_t_tbl
+
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
@@ -1559,6 +1564,9 @@ vdj_t_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+
+vdj_t_annotation <- vdj_t_tbl
+
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
@@ -1715,18 +1723,19 @@ lineage_tbl <- tribble(
     "Clonality", label_number(0.001)(clonality)
 )
 
-vdj_t_metrics_lineage <- vdj_t_metrics %>% 
-    as.data.frame %>% t() %>% as.data.frame() %>% 
-    rownames_to_column("term") %>%
-    dplyr::rename("value" = "V1") %>%
-    bind_rows(lineage_tbl)
+vdj_t_metrics_final <- bind_rows(
+    vdj_t_stats,
+    vdj_t_sequencing_stats,
+    vdj_t_annotation,
+    lineage_tbl
+)
 
-write_tsv(vdj_t_metrics_lineage,
+write_tsv(vdj_t_metrics_final,
           paste0(params$sampleName, "_VDJ-T.metrics.tsv"), 
           col_names=FALSE)
 
-vdj_t_metrics_lineage %>%
-    split(vdj_t_metrics_lineage$term) %>% 
+vdj_t_metrics_final %>%
+    split(vdj_t_metrics_final$term) %>% 
     lapply(FUN=function(x) { x$value }) %>% 
     write_json(paste0(params$sampleName, "_VDJ-T.metrics.json"), pretty = TRUE, auto_unbox = TRUE)
 
@@ -1905,6 +1914,8 @@ if(!params$withUMI){
     vdj_b_tbl$term[which(vdj_b_tbl$term=="Median Total UMIs per Cell")] <- "Median Total Reads per Cell"
 }
 
+vdj_b_stats <- vdj_b_tbl
+
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
@@ -1963,6 +1974,9 @@ vdj_b_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+
+vdj_b_sequencing_stats <- vdj_b_tbl
+
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
@@ -1992,6 +2006,9 @@ vdj_b_tbl <- tribble(
   mutate(value = as.numeric(value)) %>%
   mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
                          value > 1 ~ label_comma()(round(value))))
+
+vdj_b_annotation <- vdj_b_tbl
+
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
@@ -2147,18 +2164,19 @@ lineage_tbl <- tribble(
     "Clonality", label_number(0.001)(clonality)
 )
 
-vdj_b_metrics_lineage <- vdj_b_metrics %>% 
-    as.data.frame %>% t() %>% as.data.frame() %>% 
-    rownames_to_column("term") %>%
-    dplyr::rename("value" = "V1") %>%
-    bind_rows(lineage_tbl)
+vdj_b_metrics_final <- bind_rows(
+    vdj_b_stats,
+    vdj_b_sequencing_stats,
+    vdj_b_annotation,
+    lineage_tbl
+)
 
-write_tsv(vdj_b_metrics_lineage,
+write_tsv(vdj_b_metrics_final,
           paste0(params$sampleName, "_VDJ-B.metrics.tsv"), 
           col_names=FALSE)
 
-vdj_b_metrics_lineage %>%
-    split(vdj_b_metrics_lineage$term) %>% 
+vdj_b_metrics_final %>%
+    split(vdj_b_metrics_final$term) %>% 
     lapply(FUN=function(x) { x$value }) %>% 
     write_json(paste0(params$sampleName, "_VDJ-B.metrics.json"), pretty = TRUE, auto_unbox = TRUE)
 
