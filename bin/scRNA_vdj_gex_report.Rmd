@@ -1412,11 +1412,6 @@ Row
 
 ```{r include = FALSE, eval = include_tcr}
 vdj_t_metrics <- fromJSON(params$VDJ_T_metrics)
-## write metrics to tsv
-fromJSON(params$VDJ_T_metrics) %>% 
-    as.data.frame %>% t() %>% as.data.frame() %>% 
-    rownames_to_column("term") %>% 
-    write_tsv(paste0(params$sampleName, "_VDJ-T.metrics.tsv"), col_names=FALSE)
 ```
 
 ```{r eval = include_tcr}
@@ -1719,7 +1714,22 @@ lineage_tbl <- tribble(
     "Shannon Entropy", label_number(0.001)(entropy),
     "Clonality", label_number(0.001)(clonality)
 )
-   
+
+vdj_t_metrics_lineage <- vdj_t_metrics %>% 
+    as.data.frame %>% t() %>% as.data.frame() %>% 
+    rownames_to_column("term") %>%
+    dplyr::rename("value" = "V1") %>%
+    bind_rows(lineage_tbl)
+
+write_tsv(vdj_t_metrics_lineage,
+          paste0(params$sampleName, "_VDJ-T.metrics.tsv"), 
+          col_names=FALSE)
+
+vdj_t_metrics_lineage %>%
+    split(vdj_t_metrics_lineage$term) %>% 
+    lapply(FUN=function(x) { x$value }) %>% 
+    write_json(paste0(params$sampleName, "_VDJ-T.metrics.json"), pretty = TRUE, auto_unbox = TRUE)
+
 names(lineage_tbl) <- c("", "")
 lineage_tbl %>% 
     kbl() %>% 
@@ -1835,10 +1845,7 @@ Row
 
 ```{r include = FALSE, eval = include_bcr}
 vdj_b_metrics <- fromJSON(params$VDJ_B_metrics)
-fromJSON(params$VDJ_B_metrics) %>% 
-    as.data.frame %>% t() %>% as.data.frame() %>% 
-    rownames_to_column("term") %>% 
-    write_tsv(paste0(params$sampleName, "_VDJ-B.metrics.tsv"), col_names=FALSE)
+
 ```
 
 ```{r eval = include_bcr}
@@ -2139,7 +2146,22 @@ lineage_tbl <- tribble(
     "Shannon Entropy", label_number(0.001)(entropy),
     "Clonality", label_number(0.001)(clonality)
 )
-   
+
+vdj_b_metrics_lineage <- vdj_b_metrics %>% 
+    as.data.frame %>% t() %>% as.data.frame() %>% 
+    rownames_to_column("term") %>%
+    dplyr::rename("value" = "V1") %>%
+    bind_rows(lineage_tbl)
+
+write_tsv(vdj_b_metrics_lineage,
+          paste0(params$sampleName, "_VDJ-B.metrics.tsv"), 
+          col_names=FALSE)
+
+vdj_b_metrics_lineage %>%
+    split(vdj_b_metrics_lineage$term) %>% 
+    lapply(FUN=function(x) { x$value }) %>% 
+    write_json(paste0(params$sampleName, "_VDJ-B.metrics.json"), pretty = TRUE, auto_unbox = TRUE)
+
 names(lineage_tbl) <- c("", "")
 lineage_tbl %>% 
     kbl() %>% 
