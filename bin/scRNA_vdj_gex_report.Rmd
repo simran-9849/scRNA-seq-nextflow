@@ -281,12 +281,13 @@ getLineage <- function(cells, barcode_report, airr_report){
     }
     
     singleInfo <- list()
-    for(i in 1:length(d_single)){
-        singleInfo[[i]] <- d_single[[i]] %>%
-            mutate(lineageType = "single",
-                   lineageName = paste0("LS", i))
+    if(length(d_single)>0){
+        for(i in 1:length(d_single)){
+            singleInfo[[i]] <- d_single[[i]] %>%
+                mutate(lineageType = "single",
+                       lineageName = paste0("LS", i))
+        }
     }
-    
     multipleInfo <- list()
     if(length(d_multiple_final)>0){
         for(i in 1:length(d_multiple_final)){
