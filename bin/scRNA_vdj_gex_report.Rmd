@@ -186,13 +186,11 @@ createModal <- function(Id, expl_tbl){
 
 
 ```{r include = FALSE}
-## lineage stats
-## get lineage information
-## defined as the same VDJ segments, identical CDR3 length and > 80% CDR3 nt identity
+## Combine TCR/BCR information from barcode_report and airr_report
 combineInfo <- function(cells, barcode_report, airr_report){
     d <- read_tsv(barcode_report) %>%
         dplyr::rename("barcode" = "#barcode") %>%
-        select(barcode, chain1, chain2) %>% 
+        select(barcode, chain1, chain2, secondary_chain1, secondary_chain2) %>% 
         filter(barcode %in% cells)
     
     d$chain1_contig <- strsplit(d$chain1,",") %>% sapply("[", 8)
@@ -230,16 +228,56 @@ combineInfo <- function(cells, barcode_report, airr_report){
         )
     d$chain1_cdr3aa <- strsplit(d$chain1, ",") %>% sapply("[", 6)
     d$chain2_cdr3aa <- strsplit(d$chain2, ",") %>% sapply("[", 6)
+    d$chain1_expr <- strsplit(d$chain1, ",") %>% sapply("[", 7) %>% as.numeric()
+    d$chain2_expr <- strsplit(d$chain2, ",") %>% sapply("[", 7) %>% as.numeric()
+    d <- d %>%
+        mutate(
+            chain1_type = case_when(
+                str_detect(chain1_V, "IGH") ~ "IGH",
+                str_detect(chain1_D, "IGH") ~ "IGH",
+                str_detect(chain1_J, "IGH") ~ "IGH",
+                str_detect(chain1_V, "TRB") ~ "TRB",
+                str_detect(chain1_D, "TRB") ~ "TRB",
+                str_detect(chain1_J, "TRB") ~ "TRB",
+                str_detect(chain1_V, "TRD") ~ "TRD",
+                str_detect(chain1_D, "TRD") ~ "TRD",
+                str_detect(chain1_J, "TRD") ~ "TRD",
+                TRUE ~ "unknown"
+            ),
+            chain2_type = case_when(
+                str_detect(chain2_V, "IGK") ~ "IGK",
+                str_detect(chain2_J, "IGK") ~ "IGK",
+                str_detect(chain2_V, "IGL") ~ "IGL",
+                str_detect(chain2_J, "IGL") ~ "IGL",
+                str_detect(chain2_V, "TRA") ~ "TRA",
+                str_detect(chain2_J, "TRA") ~ "TRA",
+                str_detect(chain2_V, "TRG") ~ "TRG",
+                str_detect(chain2_J, "TRG") ~ "TRG",
+                TRUE ~ "unknown"
+            )
+        )
+    d <- d %>% dplyr::select(-c(chain1, chain2))
+    ## relocate columns
+    d <- d %>% 
+        dplyr::select(barcode, 
+                      chain1_V, chain1_D, chain1_J, chain1_cdr1, chain1_cdr2, chain1_cdr3, chain1_cdr3aa, 
+                      chain1_complete, chain1_productive, chain1_type, chain1_expr, chain1_contig, chain1_contigSeq, secondary_chain1,
+                      chain2_V, chain2_D, chain2_J, chain2_cdr1, chain2_cdr2, chain2_cdr3, chain2_cdr3aa, 
+                      chain2_complete, chain2_productive, chain2_type, chain2_expr, chain2_contig, chain2_contigSeq, secondary_chain2) %>%
+        mutate(across(c(starts_with("chain"), starts_with("secondary")), 
+                      .fns = function(x) ifelse(x != "*", x, NA)))
     return(d)
 }
-
+## Lineage stats
+## Get lineage information, only using cells with paired and productive chains
+## Lineage defined as the same VDJ segments, identical CDR3 nucleotides length and > 80% CDR3 nt
 getLineage <- function(cells, barcode_report, airr_report){
     
     d <- combineInfo(cells, barcode_report, airr_report)
     
     ## filter d to only retain the cells with the productive chains
     d0 <- d %>%
-        filter(chain1 !="*", chain2 !="*") %>%
+        filter(!is.na(chain1_contig), !is.na(chain2_contig)) %>%
         filter(chain1_productive == TRUE, chain2_productive == TRUE) %>%
         mutate(cdrh3_len = str_length(chain1_cdr3)) %>%
         group_by(chain1_V, chain1_D, chain1_J, chain2_V, chain2_D, chain2_J, cdrh3_len) %>% 
@@ -863,7 +901,7 @@ createModal("TCR_annotation", expl_tbl)
 expl_tbl <- tribble(
     ~title, ~content,
     "Clones (Paired)",
-    "Here we counted unique CDR3 amino acid pairs with identical germline VDJ gene segments as different clones. This result includes all the paired ones from the clonotype table.",
+    "Here we counted unique CDR3 nucleotides pairs with identical germline VDJ gene segments as different clones. This result includes all the paired ones from the clonotype table.",
     "Lineage Number",
     "Number of the lineages identified from the paired clones. The cells in the same lineage are required to have identical VH and VL germline gene segments and at least 80% nucleotide identity in the CDR-H3 region.",
     "Single Cell Lineage Number",
@@ -901,14 +939,14 @@ createModal("Chain_coverage", expl_tbl)
 expl_tbl <- tribble(
     ~title, ~content,
     "Top 1000 Clonotypes",
-    "Clonotypes are defined as the same VH and VL CDR3 amino acid sequences as well as identical VDJ combinations. Here we also require the chains to be productive, and cells with only one chain detected are also included."
+    "Clonotypes are defined as the same VH and VL CDR3 <b>nucleotide</b> sequences as well as identical VDJ combinations. Here cells generating unproductive chain or with only one chain detected are also included. If multiple heavy or light chain contigs were obtained, only the most abundant one will be shown."
 )
 createModal("Clonetypes_top1000", expl_tbl)
 
 expl_tbl <- tribble(
     ~title, ~content,
     "Top 10 Clonotypes",
-    "The histogram depicts cell counts of the top 10 abundant clonetypes generated by <b>productive</b> chains. Clonetypes with only one chain detect are also included. The clonotype IDs on the X axis correspond to the clonotype IDs listed in the table."
+    "The histogram depicts cell counts of the top 10 abundant clonotypes. Clonotypes with only one chain detected or from unproductive chain are also included. The clonotype IDs on the X axis correspond to the clonotype IDs listed in the table."
 )
 createModal("Clonetypes_top10", expl_tbl)
 
@@ -1369,18 +1407,27 @@ VDJ-T {data-orientation=rows}
 
 ```{r include=FALSE, eval = include_tcr}
 vdj_t_cells <- read_tsv(params$VDJ_T_cells)
-d <- combineInfo(cells = vdj_t_cells$CB, 
-                 barcode_report = params$VDJ_T_report,
-                 airr_report = params$VDJ_T_airr) %>%
-    filter(chain1_productive == TRUE | chain2_productive == TRUE)
-vdj_t_cloneType <- d %>%
+vdj_t_combinedInfo <- combineInfo(cells = vdj_t_cells$CB, 
+                                  barcode_report = params$VDJ_T_report,
+                                  airr_report = params$VDJ_T_airr)
+
+vdj_t_cloneType <- vdj_t_combinedInfo %>%
     dplyr::select(chain1_cdr3aa, chain2_cdr3aa, chain1_V, chain1_D, chain1_J, chain2_V, chain2_J) %>%
     group_by(chain1_cdr3aa, chain2_cdr3aa, chain1_V, chain1_D, chain1_J, chain2_V, chain2_J) %>%
     summarize(cellCount = n()) %>%
     ungroup() %>%
     mutate(
-        label1 = str_sub(chain1_V, 1L, 3L),
-        label2 = str_sub(chain2_V, 1L, 3L),
+        label1 = case_when(
+            !is.na(chain1_V) ~ str_sub(chain1_V, 1L, 3L),
+            !is.na(chain1_D) ~ str_sub(chain1_D, 1L, 3L),
+            !is.na(chain1_J) ~ str_sub(chain1_J, 1L, 3L),
+            TRUE ~ "Heavy"
+        ),
+        label2 = case_when(
+            !is.na(chain2_V) ~ str_sub(chain2_V, 1L, 3L),
+            !is.na(chain2_J) ~ str_sub(chain2_J, 1L, 3L),
+            TRUE ~ "Light"
+        ),
         Hchain_VDJ = paste0(chain1_V, "|", chain1_D, "|", chain1_J),
         Lchain_VDJ = paste0(chain2_V, "|", chain2_J)
     ) %>%
@@ -1392,17 +1439,19 @@ vdj_t_cloneType <- d %>%
         )
     ) %>%
     arrange(desc(cellCount)) %>%
-    mutate(Frequency = cellCount/nrow(d)) %>%
+    mutate(Frequency = cellCount/nrow(vdj_t_combinedInfo)) %>%
     dplyr::select(cloneType, Hchain_VDJ, Lchain_VDJ, cellCount, Frequency)
 
-vdj_t_cloneType$Hchain_VDJ[which(vdj_t_cloneType$Hchain_VDJ == "*|NA|NA")] <- NA
-vdj_t_cloneType$Lchain_VDJ[which(vdj_t_cloneType$Lchain_VDJ == "*|NA")] <- NA
+vdj_t_cloneType$Hchain_VDJ[which(vdj_t_cloneType$Hchain_VDJ == "NA|NA|NA")] <- NA
+vdj_t_cloneType$Lchain_VDJ[which(vdj_t_cloneType$Lchain_VDJ == "NA|NA")] <- NA
     
 vdj_t_cloneType <- vdj_t_cloneType %>%
     mutate(
         id = 1:nrow(vdj_t_cloneType),
         Frequency = scales::label_percent(0.01)(Frequency)
     )
+write_tsv(vdj_t_combinedInfo, file = paste0(params$sampleName, "_TCR_results.tsv"))
+write_tsv(vdj_t_cloneType, file = paste0(params$sampleName, "_TCR_clonotypes.tsv"))
 ```
 
 Row
@@ -1551,20 +1600,44 @@ vdj_t_tbl %>%
 ##Cells with productive IGK contig
 ##Cells with productive IGL contig
 ##Paired clonotype diversity
+medianUMIsChain1 <- vdj_t_combinedInfo %>% 
+    pull(chain1_expr) %>% median(na.rm = TRUE) %>% round()
+medianUMIsChain2 <- vdj_t_combinedInfo %>%
+    pull(chain2_expr) %>% median(na.rm = TRUE) %>% round()
+cellsWithProductiveChainTRB <- vdj_t_combinedInfo %>%
+    filter(chain1_productive, chain1_type == "TRB") %>% nrow()
+cellsWithProductiveChainTRA <- vdj_t_combinedInfo %>%
+    filter(chain2_productive, chain2_type == "TRA") %>% nrow()
+cellsWithProductiveChainTRD <- vdj_t_combinedInfo %>%
+    filter(chain1_productive, chain1_type == "TRD") %>% nrow()
+cellsWithProductiveChainTRG <- vdj_t_combinedInfo %>%
+    filter(chain2_productive, chain2_type == "TRG") %>% nrow()
+cellsWithProductiveChainTRATRB <- vdj_t_combinedInfo %>%
+    filter(chain1_productive, 
+           chain2_productive, 
+           chain1_type == "TRB", 
+           chain2_type == "TRA") %>% 
+    nrow()
+cellsWithProductiveChainTRGTRD <- vdj_t_combinedInfo %>%
+    filter(chain1_productive, 
+           chain2_productive, 
+           chain1_type == "TRD", 
+           chain2_type == "TRG") %>% 
+    nrow()
+
 vdj_t_tbl <- tribble(
   ~term, ~value,
-  "Median TRB/TRD UMIs per Cell", vdj_t_metrics$medianUMIsChain1,
-  "Median TRA/TRG UMIs per Cell", vdj_t_metrics$medianUMIsChain2,
-  "Cells with Productive TRB", vdj_t_metrics$cellsWithProductiveChainTRB,
-  "Cells with Productive TRD", vdj_t_metrics$cellsWithProductiveChainTRD,
-  "Cells with Productive TRA", vdj_t_metrics$cellsWithProductiveChainTRA,
-  "Cells with Productive TRG", vdj_t_metrics$cellsWithProductiveChainTRG,
-  "Cells with Productive TRATRB pair", vdj_t_metrics$cellsWithProductiveChainTRATRB,
-  "Cells with Productive TRGTRD pair", vdj_t_metrics$cellsWithProductiveChainTRGTRD
+  "Median TRB/TRD UMIs per Cell", medianUMIsChain1,
+  "Median TRA/TRG UMIs per Cell", medianUMIsChain2,
+  "Cells with Productive TRB", cellsWithProductiveChainTRB,
+  "Cells with Productive TRD", cellsWithProductiveChainTRD,
+  "Cells with Productive TRA", cellsWithProductiveChainTRA,
+  "Cells with Productive TRG", cellsWithProductiveChainTRG,
+  "Cells with Productive TRATRB pair", cellsWithProductiveChainTRATRB,
+  "Cells with Productive TRGTRD pair", cellsWithProductiveChainTRGTRD
 ) %>%
   mutate(value = as.numeric(value)) %>%
-  mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
-                         value > 1 ~ label_comma()(round(value))))
+  mutate(value = label_comma()(round(value)))
 
 vdj_t_annotation <- vdj_t_tbl
 
@@ -1684,11 +1757,12 @@ tcr_lineageInfo <- getLineage(cells = vdj_t_cells$CB,
                               barcode_report = params$VDJ_T_report,
                               airr_report = params$VDJ_T_airr)
                               
-write_tsv(tcr_lineageInfo, file = paste0(params$sampleName, "_TCR_resOut.tsv"))
+write_tsv(tcr_lineageInfo, file = paste0(params$sampleName, "_TCR_results.productiveOnly_withLineage.tsv"))
 
 tcr_pairing_clones <- tcr_lineageInfo %>%
     select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
            chain2_V, chain2_J, chain2_cdr3) %>%
+    na.omit() %>%
     distinct() %>%
     nrow()
 tcr_lineage_number <- tcr_lineageInfo %>%
@@ -1811,18 +1885,30 @@ VDJ-B {data-orientation=rows}
 
 ```{r include=FALSE, eval = include_bcr}
 vdj_b_cells <- read_tsv(params$VDJ_B_cells)
-d <- combineInfo(cells = vdj_b_cells$CB, 
-                 barcode_report = params$VDJ_B_report,
-                 airr_report = params$VDJ_B_airr) %>%
-    filter(chain1_productive == TRUE | chain2_productive == TRUE)
-vdj_b_cloneType <- d %>%
-    dplyr::select(chain1_cdr3aa, chain2_cdr3aa, chain1_V, chain1_D, chain1_J, chain2_V, chain2_J) %>%
-    group_by(chain1_cdr3aa, chain2_cdr3aa, chain1_V, chain1_D, chain1_J, chain2_V, chain2_J) %>%
+vdj_b_combinedInfo <- combineInfo(cells = vdj_b_cells$CB, 
+                                  barcode_report = params$VDJ_B_report,
+                                  airr_report = params$VDJ_B_airr)
+
+vdj_b_cloneType <- vdj_b_combinedInfo %>%
+    dplyr::select(chain1_cdr3aa, chain2_cdr3aa,
+                  chain1_cdr3, chain2_cdr3,
+                  chain1_V, chain1_D, chain1_J, 
+                  chain2_V, chain2_J) %>%
+    group_by(chain1_cdr3aa, chain2_cdr3aa, chain1_cdr3, chain2_cdr3, chain1_V, chain1_D, chain1_J, chain2_V, chain2_J) %>%
     summarize(cellCount = n()) %>%
     ungroup() %>%
     mutate(
-        label1 = str_sub(chain1_V, 1L, 3L),
-        label2 = str_sub(chain2_V, 1L, 3L),
+        label1 = case_when(
+            !is.na(chain1_V) ~ str_sub(chain1_V, 1L, 3L),
+            !is.na(chain1_D) ~ str_sub(chain1_D, 1L, 3L),
+            !is.na(chain1_J) ~ str_sub(chain1_J, 1L, 3L),
+            TRUE ~ "Heavy"
+        ),
+        label2 = case_when(
+            !is.na(chain2_V) ~ str_sub(chain2_V, 1L, 3L),
+            !is.na(chain2_J) ~ str_sub(chain2_J, 1L, 3L),
+            TRUE ~ "Light"
+        ),
         Hchain_VDJ = paste0(chain1_V, "|", chain1_D, "|", chain1_J),
         Lchain_VDJ = paste0(chain2_V, "|", chain2_J)
     ) %>%
@@ -1834,17 +1920,19 @@ vdj_b_cloneType <- d %>%
         )
     ) %>%
     arrange(desc(cellCount)) %>%
-    mutate(Frequency = cellCount/nrow(d)) %>%
+    mutate(Frequency = cellCount/nrow(vdj_b_combinedInfo)) %>%
     dplyr::select(cloneType, Hchain_VDJ, Lchain_VDJ, cellCount, Frequency)
 
-vdj_b_cloneType$Hchain_VDJ[which(vdj_b_cloneType$Hchain_VDJ == "*|NA|NA")] <- NA
-vdj_b_cloneType$Lchain_VDJ[which(vdj_b_cloneType$Lchain_VDJ == "*|NA")] <- NA
+vdj_b_cloneType$Hchain_VDJ[which(vdj_b_cloneType$Hchain_VDJ == "NA|NA|NA")] <- NA
+vdj_b_cloneType$Lchain_VDJ[which(vdj_b_cloneType$Lchain_VDJ == "NA|NA")] <- NA
     
 vdj_b_cloneType <- vdj_b_cloneType %>%
     mutate(
         id = 1:nrow(vdj_b_cloneType),
         Frequency = scales::label_percent(0.01)(Frequency)
     )
+write_tsv(vdj_b_combinedInfo, file = paste0(params$sampleName, "_BCR_results.tsv"))
+write_tsv(vdj_b_cloneType, file = paste0(params$sampleName, "_BCR_clonotypes.tsv"))
 ```
 
 Row
@@ -1994,19 +2082,39 @@ vdj_b_tbl %>%
 ##Cells with productive IGK contig
 ##Cells with productive IGL contig
 ##Paired clonotype diversity
+medianUMIsChain1 <- vdj_b_combinedInfo$chain1_expr %>% median(na.rm = TRUE) %>% as.numeric()
+medianUMIsChain2 <- vdj_b_combinedInfo$chain2_expr %>% median(na.rm = TRUE) %>% as.numeric()
+cellsWithProductiveChainIGH <- vdj_b_combinedInfo %>%
+    filter(chain1_productive, chain1_type == "IGH") %>% nrow() %>% as.numeric()
+cellsWithProductiveChainIGK <- vdj_b_combinedInfo %>%
+    filter(chain2_productive, chain2_type == "IGK") %>% nrow() %>% as.numeric()
+cellsWithProductiveChainIGL <- vdj_b_combinedInfo %>%
+    filter(chain2_productive, chain2_type == "IGL") %>% nrow() %>% as.numeric()
+cellsWithProductiveChainIGKIGH <- vdj_b_combinedInfo %>%
+    filter(chain1_productive,
+           chain2_productive, 
+           chain1_type == "IGH", 
+           chain2_type == "IGK") %>% 
+    nrow() %>% as.numeric()
+cellsWithProductiveChainIGLIGH <- vdj_b_combinedInfo %>%
+    filter(chain1_productive, 
+           chain2_productive, 
+           chain1_type == "IGH", 
+           chain2_type == "IGL") %>% 
+    nrow() %>% as.numeric()
+
 vdj_b_tbl <- tribble(
   ~term, ~value,
-  "Median IGH UMIs per Cell", vdj_b_metrics$medianUMIsChain1,
-  "Median IGK/L UMIs per Cell", vdj_b_metrics$medianUMIsChain2,
-  "Cells with Productive IGH", vdj_b_metrics$cellsWithProductiveChainIGH,
-  "Cells with Productive IGK", vdj_b_metrics$cellsWithProductiveChainIGK,
-  "Cells with Productive IGL", vdj_b_metrics$cellsWithProductiveChainIGL,
-  "Cells with Productive IGKIGH pair", vdj_b_metrics$cellsWithProductiveChainIGKIGH,
-  "Cells with Productive IGLIGH pair", vdj_b_metrics$cellsWithProductiveChainIGLIGH
+  "Median IGH UMIs per Cell", medianUMIsChain1,
+  "Median IGK/L UMIs per Cell", medianUMIsChain2,
+  "Cells with Productive IGH", cellsWithProductiveChainIGH,
+  "Cells with Productive IGK", cellsWithProductiveChainIGK,
+  "Cells with Productive IGL", cellsWithProductiveChainIGL,
+  "Cells with Productive IGKIGH pair", cellsWithProductiveChainIGKIGH,
+  "Cells with Productive IGLIGH pair", cellsWithProductiveChainIGLIGH
 ) %>%
   mutate(value = as.numeric(value)) %>%
-  mutate(value=case_when(value <= 1 ~ label_percent(0.01)(value),
-                         value > 1 ~ label_comma()(round(value))))
+  mutate(value = label_comma()(round(value)))
 
 vdj_b_annotation <- vdj_b_tbl
 
@@ -2125,11 +2233,12 @@ bcr_lineageInfo <- getLineage(cells = vdj_b_cells$CB,
                               barcode_report = params$VDJ_B_report,
                               airr_report = params$VDJ_B_airr)
 
-write_tsv(bcr_lineageInfo, file = paste0(params$sampleName, "_BCR_resOut.tsv"))
+write_tsv(bcr_lineageInfo, file = paste0(params$sampleName, "_BCR_results.productiveOnly_withLineage.tsv"))
 
 bcr_pairing_clones <- bcr_lineageInfo %>%
     select(chain1_V, chain1_D, chain1_J, chain1_cdr3,
            chain2_V, chain2_J, chain2_cdr3) %>%
+    na.omit() %>%
     distinct() %>%
     nrow()
 bcr_lineage_number <- bcr_lineageInfo %>%
