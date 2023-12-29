@@ -188,7 +188,9 @@ singleBC_trust4(){
     local readsList=$2
     local barcodeFa=$3
     local umiFa=$4
+    local trust4_wd=$5
 
+    mkdir -p $trust4_wd
     ## extract read list
     ##readID=$(mktemp -p ./ readID.XXXXXX)
     ##fasta_formatter -t -i $inputBC | awk -v bc="$bc" '$2==bc{print $1}' > $readID
@@ -206,17 +208,17 @@ singleBC_trust4(){
 
     if [[ $R2_Only == true ]]
     then
-        local tmpR2=$(mktemp -p ./ R2.XXXXXX.fq)
+        local tmpR2=$(mktemp -p "$trust4_wd" R2.XXXXXX.fq)
         seqtk subseq $inputR2 $readsList > $tmpR2
         local trust4_input_opt="-u $tmpR2"
     else
-        local tmpR1=$(mktemp -p ./ R1.XXXXXX.fq)
-        local tmpR2=$(mktemp -p ./ R2.XXXXXX.fq)
+        local tmpR1=$(mktemp -p "$trust4_wd" R1.XXXXXX.fq)
+        local tmpR2=$(mktemp -p "$trust4_wd" R2.XXXXXX.fq)
         seqtk subseq $inputR1 $readsList > $tmpR1
         seqtk subseq $inputR2 $readsList > $tmpR2
         local trust4_input_opt="-1 $tmpR1 -2 $tmpR2"
     fi
-    local trust4_out=$(mktemp -d -p ./ "${bc}.XXXXXX")
+    local trust4_out=$(mktemp -d -p "$trust4_wd" "${bc}.XXXXXX")
     ## separate trust4 steps, since fastq-extractor will perform filtration
     ## and there may be no reads left
     fastq-extractor -t 1 \
@@ -241,14 +243,20 @@ singleBC_trust4(){
                    -t 1 \
                    --stage 1
 
-        awk 'NR>1{print}' $trust4_out/singleBC_barcode_report.tsv >> $reportOut
-        awk 'NR>1{print}' $trust4_out/singleBC_barcode_airr.tsv >> $airrOut
-        cat $trust4_out/singleBC_assign.out >> $readsAssign
-        cat $trust4_out/singleBC_annot.fa >> $annotFa
-        cat $trust4_out/singleBC_final.out >> $finalOut
+        ##awk 'NR>1{print}' $trust4_out/singleBC_barcode_report.tsv >> $reportOut
+        ##awk 'NR>1{print}' $trust4_out/singleBC_barcode_airr.tsv >> $airrOut
+        ##cat $trust4_out/singleBC_assign.out >> $readsAssign
+        ##cat $trust4_out/singleBC_annot.fa >> $annotFa
+        ##cat $trust4_out/singleBC_final.out >> $finalOut
     fi
-    rm $tmpR1 $tmpR2
-    rm -rf $trust4_out
+
+    if [[ $R2_Only == true ]]
+    then
+        rm $tmpR2
+    else
+        rm $tmpR1 $tmpR2
+    fi
+    ##rm -rf $trust4_out
 }
 
 
@@ -263,14 +271,20 @@ export genomeRef
 export imgtRef
 export R2_Only
 export readFormat
-export reportOut
-export airrOut
-export readsAssign
-export annotFa
-export finalOut
+##export reportOut
+##export airrOut
+##export readsAssign
+##export annotFa
+##export finalOut
 
 cat $bc_tsv |
-    parallel -j $threads singleBC_trust4 {} $workDir/readsList/{}.single_reads.lst $workDir/barcode/{}.single_bc.fa $workDir/umi/{}.single_umi.fa
+    parallel -j $threads singleBC_trust4 {} $workDir/readsList/{}.single_reads.lst $workDir/barcode/{}.single_bc.fa $workDir/umi/{}.single_umi.fa $workDir
+
+awk 'FNR>1{print}' $workDir/*/singleBC_barcode_report.tsv >> $reportOut
+awk 'FNR>1{print}' $workDir/*/singleBC_barcode_airr.tsv >> $airrOut
+cat $workDir/*/singleBC_assign.out >> $readsAssign
+cat $workDir/*/singleBC_annot.fa >> $annotFa
+cat $workDir/*/singleBC_final.out >> $finalOut
 
 ##readarray -t Arr < $bc_tsv
 ##for i in "${Arr[@]}"
