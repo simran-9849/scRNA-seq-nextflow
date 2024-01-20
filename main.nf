@@ -8,8 +8,7 @@ nextflow.enable.dsl=2
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
 include { STARSOLO; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MULT_SUMMARY; STARSOLO_MULT_UMI } from "./starsolo"
-include { initOptions; saveFiles; getSoftwareName; getProcessName } from './modules/nf-core_rnaseq/functions'
-include { QUALIMAP_RNASEQ } from './modules/nf-core/modules/qualimap/rnaseq/main'
+include { GENECOVERAGE; FEATURESTATS } from "./gene_coverage"
 include { CHECK_SATURATION } from "./sequencing_saturation"
 include { GET_VERSIONS } from "./present_version"
 include { REPORT } from "./report"
@@ -126,19 +125,31 @@ workflow scRNAseq {
         )
     }
 
-    ch_qualimap_multiqc           = Channel.empty()
-    QUALIMAP_RNASEQ(
+    ch_featureStats   = Channel.empty()
+    ch_geneCoverage   = Channel.empty()
+
+    FEATURESTATS(
         ch_genome_bam,
+        ch_genome_bam_index,
         ch_genomeGTF
     )
-    ch_qualimap_multiqc = QUALIMAP_RNASEQ.out.results
+    
+    GENECOVERAGE(
+        ch_genome_bam,
+        ch_genome_bam_index,
+        ch_genomeGTF
+    )
+
+    ch_featureStats  = FEATURESTATS.out.stats
+    ch_geneCoverage  = GENECOVERAGE.out.matrix
 
     if(params.soloMultiMappers != "Unique"){
         REPORT(
             STARSOLO_MULT_SUMMARY.out.summary_multiple,
             STARSOLO_MULT_UMI.out.UMI_file_multiple,
             STARSOLO_MULTIPLE.out.filteredDir,
-            ch_qualimap_multiqc,
+            ch_featureStats,
+            ch_geneCoverage,
             CHECK_SATURATION.out.outJSON,
             GET_VERSIONS.out.versions
         )
@@ -147,7 +158,8 @@ workflow scRNAseq {
             ch_starsolo_summary,
             ch_starsolo_UMI,
             ch_filteredDir,
-            ch_qualimap_multiqc,
+            ch_featureStats,            
+            ch_geneCoverage,
             CHECK_SATURATION.out.outJSON,
             GET_VERSIONS.out.versions
         )

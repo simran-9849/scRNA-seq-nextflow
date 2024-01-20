@@ -4,7 +4,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - plotly
   - samtools==1.15
   - star==2.7.11a
   - cutadapt>=3.5
@@ -32,5 +31,6 @@ dependencies:
   - r-rhpcblasctl
   - trust4>=1.0.12
   - r-seqinr
-  - bioconductor-complexheatmap
   - parallel>=20230922
+  - deeptools
+  - subread

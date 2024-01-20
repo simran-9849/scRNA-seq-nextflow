@@ -10,8 +10,8 @@ output:
       version: 5
 params:
   sampleName : "sampleName"
-  qualimap_out : "rnaseq_qc_results.txt"
-  qualimap_gene_coverage : "qualimap_gene_coverage.txt"
+  featureStats : "sampleID.featureCoverage_stats.json"
+  geneCoverage : "sampleID.scaled.tab"
   starsolo_matrixDir: "sample/Gene/filtered"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
@@ -84,11 +84,10 @@ starsolo_summary <- starsolo_summary %>%
     select(-value) %>%
     dplyr::rename("value" = "data") %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
-exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
-exon_ratio <- system(exon_cmd, intern = TRUE)
-
-intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
-intron_ratio <- system(intron_cmd, intern = TRUE)
+    
+exon_ratio <- fromJSON(params$featureStats)$exonRatio
+intron_ratio <- fromJSON(params$featureStats)$exonRatio
+intergenic_ratio <- fromJSON(params$featureStats)$intergenicRatio
 ```
 
 ```{r process_starsolo, include = FALSE}
@@ -290,7 +289,8 @@ d <- starsolo_summary %>%
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
+    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Intergenic Regions", value = intergenic_ratio)
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
@@ -405,10 +405,12 @@ qcPlot
 ### Gene Coverage
 
 ```{r}
-read_tsv(params$qualimap_gene_coverage) %>%
-    ggplot(aes(x=`#Transcript position`, y=`Transcript coverage profile`)) +
+dep <- read_tsv("scaled.tab", skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
+geneCoverage_df <- tibble(pos = 1:length(dep), dep = dep)
+ggplot(geneCoverage_df, aes(x=`pos`, y=`dep`)) +
     geom_line(size=1, color = "#551a8b", alpha=0.8) +
-    scale_y_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+    xlab("Relative Position")+ylab("Transcript Coverage")+
     theme_bw() + theme(panel.grid = element_blank())
 ```
 
