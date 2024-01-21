@@ -36,10 +36,9 @@ library(plotly)
 library(kableExtra)
 library(Seurat)
 library(future)
-library(SeuratDisk)
 
 set.seed(1234)
-plan(multisession, workers = as.numeric(params$nCPUs))
+plan(multisession, workers = min(as.numeric(params$nCPUs),4))
 options(future.globals.maxSize = as.numeric(params$nMem), sass.cache = FALSE)
 RhpcBLASctl::blas_set_num_threads(1) # https://github.com/satijalab/seurat/issues/3991
 
@@ -85,9 +84,9 @@ starsolo_summary <- starsolo_summary %>%
     dplyr::rename("value" = "data") %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
     
-exon_ratio <- fromJSON(params$featureStats)$exonRatio
-intron_ratio <- fromJSON(params$featureStats)$exonRatio
-intergenic_ratio <- fromJSON(params$featureStats)$intergenicRatio
+exon_ratio <- fromJSON(params$featureStats)$exonRatio %>% as.numeric
+intron_ratio <- fromJSON(params$featureStats)$intronRatio %>% as.numeric
+intergenic_ratio <- fromJSON(params$featureStats)$intergenicRatio %>% as.numeric
 ```
 
 ```{r process_starsolo, include = FALSE}
@@ -97,14 +96,6 @@ seuratData <- CreateSeuratObject(counts=STARSolo,
                              min.features=0, project=params$sampleName)
 seuratData[['run']]=params$sampleName
 seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
-
-## save a raw h5seurat file
-SaveH5Seurat(
-    seuratData, 
-    filename = paste0(params$sampleName, ".raw.h5seurat"), 
-    overwrite = TRUE,
-    verbose = FALSE
-)
 
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
 qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3, group.by = "run")
@@ -288,9 +279,9 @@ d <- starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
-    add_row(item = "Reads Mapped to Intergenic Regions", value = intergenic_ratio)
+    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
+    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio))
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
@@ -405,12 +396,12 @@ qcPlot
 ### Gene Coverage
 
 ```{r}
-dep <- read_tsv("scaled.tab", skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
+dep <- read_tsv(params$geneCoverage, skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
 geneCoverage_df <- tibble(pos = 1:length(dep), dep = dep)
 ggplot(geneCoverage_df, aes(x=`pos`, y=`dep`)) +
     geom_line(size=1, color = "#551a8b", alpha=0.8) +
     scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-    xlab("Relative Position")+ylab("Transcript Coverage")+
+    xlab("Transcript Relative Position")+ylab("Read Coverage")+
     theme_bw() + theme(panel.grid = element_blank())
 ```
 
@@ -471,8 +462,9 @@ starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
+    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
     mutate(sampleID=params$sampleName) %>% 
     pivot_wider(sampleID, names_from = item, values_from= value) %>% 
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
@@ -552,8 +544,9 @@ starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
+    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
     add_row(item = "SampleID", value = params$sampleName, .before = 1) %>%
     write_tsv(paste0(params$sampleName, ".metrics.tsv"))
 ```
