@@ -9,7 +9,9 @@ dependencies:
   - cutadapt>=3.5
   - fastx_toolkit
   - fastqc>=0.11.9
+  - r-base>=4.0
   - r-flexdashboard
+  - r-bslib==0.4.0
   - r-rmarkdown
   - r-scales
   - r-tidyverse
@@ -18,7 +20,9 @@ dependencies:
   - r-jsonlite
   - r-dt
   - r-future
-  - r-seurat
+  - r-seurat==4.4.0
+  - r-seuratobject==4.1.4
+  - r-matrix==1.6_1.1
   - bedtools
   - bioconductor-limma
   - gawk
@@ -26,8 +30,6 @@ dependencies:
   - gzip
   - coreutils
   - jq
-  - qualimap
-  - r-seuratdisk
   - r-rhpcblasctl
   - trust4>=1.0.12
   - r-seqinr
