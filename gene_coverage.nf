@@ -21,12 +21,12 @@ process GENECOVERAGE {
     --regionBodyLength 1000 \\
     -o ${prefix}.matrix.mat.gz \\
     --outFileNameMatrix ${prefix}.scaled.tab \\
-    -p $tack.cpus \\
+    -p $task.cpus \\
     -q
     """
 }
 
-process FEATURECOVERAGE {
+process FEATURESTATS {
     tag "${meta.id}"
     label 'process_high'
 
@@ -44,20 +44,20 @@ process FEATURECOVERAGE {
     featureCounts -T $task.cpus -O -a $gtf -o ${meta.id}_featureCounts_transcript.tsv -t transcript $bam
     featureCounts -T $task.cpus -O -a $gtf -o ${meta.id}_featureCounts_exon.tsv -t exon $bam
 
-    \$intergenicReads=\$(awk '\$1=="Unassigned_NoFeatures"{print \$2}' ${meta.id}_featureCounts_transcript.tsv.summary)
-    \$geneReads=\$(awk '\$1=="Assigned"{print \$2}' ${meta.id}_featureCounts_transcript.tsv.summary)
-    \$exonReads=\$(awk '\$1=="Assigned"{print \$2}' ${meta.id}_featureCounts_exon.tsv.summary)
-    \$intronReads=\$(awk -v geneReads=\$geneReads -v exonReads=\$exonReads 'BEGIN{print geneReads-exonReads}')
-    \$totalMappedReads=\$(awk -v geneReads=\$geneReads -v intergenicReads=\$intergenicReads 'BEGIN{print geneReads+intergenicReads}')
-    \$exonRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v exonReads=\$exonReads 'BEGIN{print exonReads/totalMappedReads}')
-    \$intronRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v intronReads=\$intronReads 'BEGIN{print intronReads/totalMappedReads}')
-    \$intergenicRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v intergenicReads=\$intergenicReads 'BEGIN{print intergenicReads/totalMappedReads}')
+    intergenicReads=\$(awk '\$1=="Unassigned_NoFeatures"{print \$2}' ${meta.id}_featureCounts_transcript.tsv.summary)
+    geneReads=\$(awk '\$1=="Assigned"{print \$2}' ${meta.id}_featureCounts_transcript.tsv.summary)
+    exonReads=\$(awk '\$1=="Assigned"{print \$2}' ${meta.id}_featureCounts_exon.tsv.summary)
+    intronReads=\$(awk -v geneReads=\$geneReads -v exonReads=\$exonReads 'BEGIN{print geneReads-exonReads}')
+    totalMappedReads=\$(awk -v geneReads=\$geneReads -v intergenicReads=\$intergenicReads 'BEGIN{print geneReads+intergenicReads}')
+    exonRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v exonReads=\$exonReads 'BEGIN{print exonReads/totalMappedReads}')
+    intronRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v intronReads=\$intronReads 'BEGIN{print intronReads/totalMappedReads}')
+    intergenicRatio=\$(awk -v totalMappedReads=\$totalMappedReads -v intergenicReads=\$intergenicReads 'BEGIN{print intergenicReads/totalMappedReads}')
 
     jq -n \\
-    --arg totalMappedReads "\$totalMapppedReads" \\
+    --arg totalMappedReads "\$totalMappedReads" \\
     --arg exonRatio "\$exonRatio" \\
     --arg intronRatio "\$intronRatio" \\
     --arg intergenicRatio "\$intergenicRatio" \\
-    '{sampleName: ${meta.id}, totalReads: \$totalMappedReads, exonRatio: \$exonRatio, intronRatio: \$intronRatio, intergenicRatio: \$intergenicRatio}' > ${meta.id}.featureCoverage_stats.json
+    '{sampleName: \"${meta.id}\", totalReads: \$totalMappedReads, exonRatio: \$exonRatio, intronRatio: \$intronRatio, intergenicRatio: \$intergenicRatio}' > ${meta.id}.featureCoverage_stats.json
     """
 }
