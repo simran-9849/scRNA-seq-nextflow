@@ -18,10 +18,20 @@ RUN apt update && apt install -y git tini
 WORKDIR /app
 
 ## create conda env with app env file
-##RUN mamba env create -f scRNAseq_env.yml
+COPY scRNAseq_env.yml .
+RUN mamba env create -f scRNAseq_env.yml
 
 ## copy entrypoint.sh
-##COPY entrypoint.sh .
+COPY entrypoint.sh .
+
+
+## Setup bashrc file for the ubuntu user
+##RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
+##RUN echo "conda activate starscope_env" >> ~/.bashrc
+##SHELL ["/bin/bash", "--login", "-c"]
+## setup default cmd (deprecated)
+## no entrypoint and cmd will be set
+RUN chmod +x entrypoint.sh
 
 ## Follow Dockstore's guide
 ## switch back to the ubuntu user so this tool (and the files written) are not owned by root
@@ -29,12 +39,4 @@ RUN groupadd -r -g 1000 ubuntu && useradd -m -r -g ubuntu -u 1000 ubuntu
 RUN chown -R ubuntu: /app
 USER ubuntu
 
-## Setup bashrc file for the ubuntu user
-##RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
-##RUN echo "conda activate starscope_env" >> ~/.bashrc
-
-##SHELL ["/bin/bash", "--login", "-c"]
-## setup default cmd (deprecated)
-## no entrypoint and cmd will be set
-##RUN chmod +x entrypoint.sh
-##ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
