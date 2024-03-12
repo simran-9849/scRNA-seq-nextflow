@@ -23,6 +23,7 @@ dependencies:
   - r-seurat==4.4.0
   - r-seuratobject==4.1.4
   - r-matrix==1.6_1.1
+  - r-bsicons
   - bedtools
   - bioconductor-limma
   - gawk

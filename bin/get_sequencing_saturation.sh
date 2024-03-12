@@ -7,11 +7,11 @@
 ## The median genes per cell considers only cells
 
 ## Input is STARsolo mapping BAM file
-## dependency: samtools, bedtools, gawk, sort
+## dependency: samtools, bedtools, gawk, sort, shuf
 
 set -euo pipefail
 
-function usage {
+usage(){
 
     cat<<-EOF
 	Usage:
@@ -19,10 +19,10 @@ function usage {
 	$(basename $0) whiteList cellList multiMapper inputBAM thread outputJSON
 	
 	All inputs are positional.
-	
+
 	whiteList        Input whiteList file name. Please set
 	                 whiteList as "None" when it's not available.
-	                 
+
 	cellList         Input cellList file, e.g. barcodes.tsv from
 	                 STARsolo's output directory. The cellList doesn't
 	                 support <(zcat barcodes.tsv.gz) as input.
@@ -84,67 +84,76 @@ else
     exit 1
 fi
 
-readInfo=$(mktemp -p ./)
 
-function processBAM {
-    ## percentage is  0.0 ≤ FLOAT ≤ 1.0
-    local percentage=$1
-    if [[ $whiteList != "None" ]]
-    then
-        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 $inputBAM |
-            awk '
-            NR==FNR{
-                wl[$1]
-            }
-            NR>FNR{
-                readID=$1;
-                CB="-"
-                UMI="-"
-                gene="-"
-                for(i=12;i<=NF;i++){
-                    if($i~/^CB/){
-                        CB=substr($i, 6)
-                    }else if($i~/^UB/){
-                        UMI=substr($i, 6)
-                    }else if($i~/^'$geneTag'/){
-                        gene=substr($i, 6)
-                    }
-                };
-                if((CB in wl) && (gene !="-")){
-                    print readID"\t"CB"\t"UMI"\t"gene
-                }
-            }
-            ' $whiteList - |
-            sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
-    else
-        samtools view -@ $thread --subsample $percentage --subsample-seed 1324 $inputBAM |
-            awk '
-            {
-                readID=$1;
-                for(i=12;i<=NF;i++){
-                    if($i~/^CB/){
-                        CB=substr($i, 6)
-                    }else if($i~/^UB/){
-                        UMI=substr($i, 6)
-                    }else if($i~/^'$geneTag'/){
-                        gene=substr($i, 6)
-                    }
-                };
-                if(CB!="-" && gene !="-"){
-                    print readID"\t"CB"\t"UMI"\t"gene
-                }
-            }
-            ' |
-            sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -S 10% -T ./ > $readInfo
-    fi
+
+## Process the BAM file and generate readInfo file
+currentTime=$(date +"%F %T")
+>&2 printf "Starting processing bam file at %s %s\n" $currentTime
+
+tmpReadList=$(mktemp -p ./)
+samtools view -@ $thread $inputBAM |
+awk '
+{
+    readID=$1;
+    CB="-"
+    UMI="-"
+    gene="-"
+    for(i=12;i<=NF;i++){
+        if($i~/^CB/){
+            CB=substr($i, 6)
+        }else if($i~/^UB/){
+            UMI=substr($i, 6)
+        }else if($i~/^'$geneTag'/){
+            gene=substr($i, 6)
+        }
+    };
+    print readID"\t"CB"\t"UMI"\t"gene
 }
+' > $tmpReadList
 
-function calc_saturation {
+readInfo=$(mktemp -p ./)
+if [[ $whiteList != "None" ]] && [[ -f $whiteList ]]
+then
+    awk '
+    NR==FNR{
+      wl[$1]
+    }
+    NR>FNR{
+      CB=$2
+      gene=$4
+      if((CB in wl) && (gene !="-")){
+        print
+      }
+    }
+    ' $whiteList $tmpReadList > $readInfo
+else
+    awk '
+    {
+      CB=$2
+      gene=$4
+      if((CB !="-") && (gene !="-")){
+        print
+      }
+    }
+    ' $tmpReadList > $readInfo
+fi
+rm $tmpReadList
+
+currentTime=$(date +"%F %T")
+>&2 printf "Processing bam file ended at %s %s\n" $currentTime
+
+calc_saturation(){
     ## percentage is  0.0 ≤ FLOAT ≤ 1.0
     local percentage=$1
-    #local inputReadInfo=$2
-    bedtools groupby -g 2,3 -c 1,4 -o distinct -i $readInfo |
-        awk '
+    local nTotal=$(wc -l $readInfo | awk '{print $1}')
+    local nRow=$(awk -v nTotal=$nTotal -v frac=$percentage 'BEGIN{printf "%i\n", nTotal*frac}')
+    tmpDownFile=$(mktemp -p ./)
+    shuf -n $nRow $readInfo > $tmpDownFile
+    tmpSortedDownFile=$(mktemp -p ./)
+    sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -T ./ $tmpDownFile > $tmpSortedDownFile
+    rm $tmpDownFile
+    bedtools groupby -g 2,3 -c 1,4 -o distinct -i $tmpSortedDownFile |
+        awk -v percentage=$percentage '
         BEGIN{
             m=0;n=0
         }
@@ -177,53 +186,56 @@ function calc_saturation {
             }else{
                 medianGene=(geneCount[length(geneCount)/2] + geneCount[length(geneCount)/2+1])/2
             }
-            print "'$percentage'\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
+            print percentage"\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
         }
-        ' $cellList -
+        ' $cellList - && rm $tmpSortedDownFile
 }
 
 ## Start time
 currentTime=$(date +"%F %T")
 >&2 printf "Calculating sequencing saturation started at %s %s\n" $currentTime
 
+
 for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
-##for i in {0.05,0.1,0.15}
+##for i in {0.05,1}
 do
     printf "Subsampling: %s\n" $i >&2
-    processBAM $i
-    printf "Processing BAM finished...\n" >&2
     calc_saturation $i
     printf "calculation finished...\n" >&2
 done |
     jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePerCell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
 
-## The last loop generates readInfo of the whole bam (percentage = 1)
 ## Get UMI hist for preseqR
-cut -f 2,3 $readInfo |
-    sort --parallel $thread -T ./ |
-    uniq -c |
-    awk '{print $1}' |
-    sort --parallel $thread -T ./ |
-    uniq -c |
-    awk '{print $2"\t"$1}' |
-    sort --parallel $thread -T ./ -k 1,1n > $preseqR_UMI_hist
+## to invoke parallel in sort, avoiding pipe
+tmpReadFile1=$(mktemp -p ./)
+tmpReadFile2=$(mktemp -p ./)
+cut -f 2,3 $readInfo > $tmpReadFile1
+sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+uniq -c $tmpReadFile2 |
+    awk '{print $1}' > $tmpReadFile1
+sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+uniq -c $tmpReadFile2 |
+    awk '{print $2"\t"$1}' > $tmpReadFile1
+sort --parallel $thread -T ./ -k 1,1n $tmpReadFile1 > $preseqR_UMI_hist
+rm $tmpReadFile1 $tmpReadFile2
 ## Get gene hist for preseqR
 ## totalGeneCount summarizes all genes from different barcodes
-tmpReadFile=$(mktemp -p ./)
-awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellList $readInfo |
-    sort --parallel $thread -T ./ |
-    uniq -c > $tmpReadFile
-wc -l $tmpReadFile | awk '{print $1}' > $totalGeneCount
-awk '{print $1}' $tmpReadFile |
-    sort --parallel $thread -T ./ |
-    uniq -c |
-    awk '{print $2"\t"$1}' |
-    sort --parallel $thread -T ./ -k 1,1n > $preseqR_gene_hist
+tmpReadFile1=$(mktemp -p ./)
+tmpReadFile2=$(mktemp -p ./)
+awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellList $readInfo > $tmpReadFile1
+sort --parallel $thread -T ./ $tmpReadFile1 |
+    uniq -c > $tmpReadFile2
+wc -l $tmpReadFile2 | awk '{print $1}' > $totalGeneCount
+awk '{print $1}' $tmpReadFile2 > $tmpReadFile1
+sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+uniq -c $tmpReadFile2 |
+    awk '{print $2"\t"$1}' > $tmpReadFile1
+sort --parallel $thread -T ./ -k 1,1n $tmpReadFile1 > $preseqR_gene_hist
 
-rm $tmpReadFile
+rm $tmpReadFile1
+rm $tmpReadFile2
 
 rm $readInfo
-
 ## End time
 currentTime=$(date +"%F %T")
 >&2 printf "Calculating sequencing saturation ended at %s %s\n" $currentTime
