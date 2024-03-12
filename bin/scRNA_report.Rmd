@@ -25,12 +25,13 @@ params:
   resolution: 0.8
 ---
 
-```{r include=FALSE}
+```{r setup, include=FALSE}
 library(tidyverse)
 library(scales)
 library(flexdashboard)
 library(jsonlite)
 library(DT)
+library(htmltools)
 ##library(htmlwidgets)
 library(plotly)
 library(kableExtra)
@@ -48,8 +49,201 @@ knitr::opts_chunk$set(
   comment = '', fig.retina = 4,
   warning = FALSE, message = FALSE
 )
+```
 
+```{r modal, include=FALSE}
+infoIcon <- function(targetEl, size = "1.2rem"){
+  querySelector <- paste0("#", targetEl)
+  ## Make HTML
+  outTag <- tags$i(
+      bsicons::bs_icon("question-circle-fill",
+              size = size,
+              fill = "var(--bs-primary)"),
+      `data-bs-toggle`="modal",
+      `data-bs-target`=querySelector
+  )
+  return(outTag)
+}
 
+createModal <- function(Id, expl_tbl){
+    contentTag <- expl_tbl %>%
+        apply(1, FUN=function(x){
+            tagList(
+                h6(HTML(x[1]), style="font-weight:700;"),
+                p(HTML(x[2]))
+            )
+        }) %>% 
+        tagList()
+
+   outTag <- div(
+       class = "modal fade",
+       id = Id,
+       tabindex = -1,
+       `aria-labelledby`="exampleModalLabel",
+       `aria-hidden`="true",
+       div(
+           class = "modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg",
+           div(
+               class = "modal-content",
+               div(
+                   class = "modal-body",
+                   div(
+                       class = "explanation",
+                       contentTag
+                   )
+               )
+           )
+       )
+   )
+   return(outTag)
+}
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Estimated Number of Cells",
+    "The number of barcodes detected as cells",
+    "Unique Reads in Cells Mapped to Gene",
+    "The number of reads uniquely mapped to gene region in cell associated barcodes",
+    "Fraction of Unique Reads in Cells",
+    'The fraction of reads uniquely mapped to gene region in cell associated barcodes (divided by total reads uniquely mapped to gene region in all of the barcodes). This value could be interpreted as the "signal to noise ratio"',
+    "Mean Reads per Cell",
+    "The mean number of reads in the cell associated barcodes",
+    "Median Reads per Cell",
+    "The median number of reads in the cell associated barcodes",
+    "UMIs in Cells",
+    "The total number of UMI counts in the cell associated barcodes",
+    "Mean UMI per Cell",
+    "The mean number of UMI counts in the cell associated barcodes",
+    "Median UMI per Cell",
+    "The median number of UMI counts in the cell associated barcodes",
+    "Mean Gene per Cell",
+    "The mean number of genes detected in the cell associated barcodes",
+    "Median Gene per Cell",
+    "The median number of genes detected in the cell associated barcodes",
+    "Total Gene Detected",
+    "Total number of genes detected in all of the cell associated barcodes"
+)
+createModal("cellStats", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Knee Plot",
+    'The Knee Plot is also called Barcode Rank Plot. The graph displays the number of filtered UMIs assigned to each barcode. The blue color indicates cell associated barcodes, while grey ones are background barcodes. Cell associated barcodes are not solely determined by their UMI count, by default the pipeline will invoke the "EmpytDrops" method, which will compare the expression profile of pre-defined cells and the background, then rescue some "low UMI" cells.'
+)
+createModal("kneePlot", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Number of Reads",
+    "Number of read pairs after trimming low quality nucleotides from the end of the cDNA read and discarding too short reads",
+    "Reads With Valid Barcodes",
+    "Percentage of reads with valid barcode sequence: <li>No mare than 2 N in barcode sequence</li><li>No homopolymer</li><li>Only one mismatch with whitelist</li><li>Reads matches a whitelist barcode with 1 mismatch, but this whitelist barcode does not get any other reads with exact matches of CB were discarded</li>",
+    "Sequencing Saturation",
+    "The saturation was calculated as 1-nUMI/nReads, which could be used to measure how many reads it will take to sequence a new transcript (UMI). nUMI is the number of UMI, nReads is the number of reads with valid barcode/UMI/Gene. This value represents the complexity of the library. For instance, if the saturation is 75%, then we could only get one new UMI when sequence four more reads.",
+    "Q30 Bases in CB+UMI",
+    "Percentage of the nucleotides in cell barcode and UMI sequence with the sequencing quality larger than 30 (99% accuracy)",
+    "Q30 Bases in RNA read",
+    "Percentage of the nucleotides in cDNA reads with sequencing quality larger than 30 (99% accuracy)"
+)
+createModal("sequencingStats", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Mapped to Genome: Unique+Multiple",
+    "Total mapping rate of the input reads in spite of barcodes matching",
+    "Reads Mapped to Genome: Unique",
+    "Fraction of the reads uniquely mapped to the genome in spite of barcodes matching",
+    "Reads Mapped to Gene: Unique+Multiple Gene",
+    '<blockquote>Multi-gene reads are concordant with (i.e. align equally well to) transcripts of two or more genes. One class of multi-gene read are those that map uniquely to a genomic region where two or more genes overlap. Another class are those reads that map to multiple loci in the genome, with each locus annotated to a different gene.</blockquote> STARsolo will output "NoMulti" if multi-genes reads are not counted',
+    "Reads Mapped to Gene: Unique Gene",
+    'Fraction of the reads mapped to a unique gene region, this parameter will mostly equivalent to "Reads Mapped Confidently to Transcriptome" in cellranger report',
+    "Reads Mapped to Exonic Regions",
+    "Fraction of the reads mapped to exonic region",
+    "Reads Mapped to Intronic Regions",
+    "Fraction of the reads mapped to intronic region",
+    "Reads Mapped to Intergenic Regions",
+    "Fraction of the reads mapped to intergenic region"
+)
+createModal("mappingStats", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Cell Cluster (colored by cell group)",
+    "The UMAP dimension reduction result of the cellular expression profile. Cells with similar expression were assigned to the same group using the unsupervised clustering algorithm of Seurat package. Each scatter represents a cells, colored by the cell group information."
+)
+createModal("clusterCellGroups", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Cell Cluster (colored by UMI density)",
+    "The UMAP dimension reduction result of the cellular expression profile. Each scatter represents a cells, colored by the UMI counts detected (log-transformed)."
+)
+createModal("clusterUMIDensity", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Marker Genes of Clusters",
+    "After dimension reduction, cells were grouped by unsupervised clustering method (leiden), group specifically expressed genes were tested and the top five genes were listed here."
+)
+createModal("DEGTable", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Cell Metrics",
+    "The number of the genes, the UMIs, as well as the mitochondrial UMI percentage in each cell were summarized in a violin plot."
+)
+createModal("cellMetrics", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Gene Coverage",
+    "The reads coverage accross the mRNA body. Typical 3' scRNAseq will have a clear peak at the transcript end, while 5' scRNAseq will have higher read counts at the mRNA start."
+)
+createModal("geneCoverage", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Sequencing Saturation",
+    "The reads of the library were downsampled at different ratio to calculate the sequencing saturation at different sequencing depth. The saturation was calculated as 1-nUMI/nReads, which could be used to measure how many reads it will take to sequence a new transcript (UMI)"
+)
+createModal("sequencingDepthCurve", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Median Genes per Cell",
+    "The reads of the library were downsampled at different ratio to simulate sequencing the library with lower depth, the median value of the genes detected in each cell was calculated to represent a gene-level saturation."
+)
+createModal("medianGeneCurve", expl_tbl)
+
+expl_tbl <- tribble(
+    ~title, ~content,
+    "Sample ID",
+    "ID of the sample",
+    "Pipeline Version",
+    "Version of the StarScope pipeline",
+    "Reference Dir",
+    "The reference genome STAR index file path",
+    "Reference GTF",
+    "Genome annotation file path",
+    "STAR Version",
+    "The version of the STAR program",
+    "Whitelist Matching",
+    "Mothod of matching the cell barcodes to the whiteList. By default we used <code>--soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts</code> parameter, which allows multiple matches in whitelist with 1 mismatched base and a posterior probability will be calcuated to choose one of the matches. Pseudocounts of 1 are added to all whitelist barcodes, multimatching to WL is allowed for CBs with N-bases. This option matches best with CellRanger >= 3.0.0",
+    "UMIfiltering",
+    "UMI filtering method, by default <code>--soloUMIfiltering MultiGeneUMI_CR</code> will remove UMIs with N and homopolymers as well as lower-count UMIs that map to more than one gene, matching the calculation method in CellRanger > 3.0.0",
+    "UMIdedup",
+    "Type of UMI deduplication (collapsing) algorithm, by default CellRanger2-4 algorithm for 1MM UMI collapsing was employed, and <code>--soloUMIdedup 1MM_CR</code> parameter was used.",
+    "Cell Calling",
+    "Cell calling method used in the STARsolo run, by default we employed <b>EmptyDrop</b> method, and <code>--soloCellFilter EmptyDrops_CR</code> parameter was used.",
+    "includeIntron",
+    "Indicate if reads mapped to intron region were included in the analysis. If it is TRUE here, <code>--soloFeatures GeneFull</code> was used in the STARsolo run, otherwise <code>--soloFeatures Gene</code> was used.",
+    "includeMultiReads",
+    "Indicate if reads mapped to mulitple genes were included in the analysis, currently not supported and will always be FALSE."
+)
+createModal("runningInfo", expl_tbl)
+```
+
+```{r include=FALSE}
 config_plotly_fig <- function(fig){
     config(
         fig,
@@ -74,7 +268,7 @@ for(i in 1:nrow(starsolo_summary)){
         if(as.numeric(starsolo_summary$value[i]) >= 1){
             starsolo_summary$data[i] <- comma(as.numeric(starsolo_summary$value[i]), accuracy = 1)
         }else{
-            starsolo_summary$data[i] <- percent(as.numeric(starsolo_summary$value[i]))
+            starsolo_summary$data[i] <- label_percent(0.01)(as.numeric(starsolo_summary$value[i]))
         }
     }else{
         starsolo_summary$data[i] <- starsolo_summary$value[i]
@@ -198,7 +392,7 @@ valueBox(medianGenePerCell, icon = "fa-barcode", color = "warning")
 Row
 ----------
 
-### Cell Stats
+### Cell Stats `r infoIcon("cellStats")`
 
 ```{r}
 d <- starsolo_summary %>% 
@@ -223,7 +417,7 @@ names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
 
-### Knee Plot
+### Knee Plot `r infoIcon("kneePlot")`
 
 ```{r}
 umi_dist <- read_tsv(params$starsolo_bc, col_names =c("UMI"))
@@ -262,7 +456,7 @@ config_plotly_fig(fig) %>% toWebGL()
 Row
 ----------
 
-### Sequencing Stats
+### Sequencing Stats `r infoIcon("sequencingStats")`
 
 ```{r}
 d <- starsolo_summary %>% 
@@ -278,7 +472,7 @@ d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
                                         
 ```
 
-### Mapping Stats
+### Mapping Stats `r infoIcon("mappingStats")`
 
 ```{r}
 d <- starsolo_summary %>% 
@@ -301,7 +495,7 @@ Cell Cluster {data-orientation=rows}
 Row
 ----------
 
-### Cell Cluster (colored by cell group)
+### Cell Cluster (colored by cell group) `r infoIcon("clusterCellGroups")`
 
 ```{r}
 ## Only plot cluster when there are more than 150 filtered cells
@@ -334,7 +528,7 @@ if(filtered_cells >= 150){
 }
 ```
 
-### Cell Cluster (colored by read depth)
+### Cell Cluster (colored by read depth) `r infoIcon("clusterUMIDensity")`
 
 
 ```{r}
@@ -361,7 +555,7 @@ plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCoun
 Row {style="margin-right: 8px"}
 ----------
 
-### Marker Genes of Clusters (top5) {style="width: 100% !important"}
+### Marker Genes of Clusters (top5) `r infoIcon("DEGTable")` {style="width: 100% !important"}
 
 ```{r}
 if(filtered_cells >= 150){
@@ -396,13 +590,13 @@ if(filtered_cells >= 150 && ("cluster" %in% colnames(markerGenes))){
 Row
 ----------
 
-### Cell Metrics
+### Cell Metrics `r infoIcon("cellMetrics")`
 
 ```{r}
 qcPlot
 ```
 
-### Gene Coverage
+### Gene Coverage `r infoIcon("geneCoverage")`
 
 ```{r}
 dep <- read_tsv("scaled.tab", skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
@@ -418,7 +612,7 @@ ggplot(geneCoverage_df, aes(x=`pos`, y=`dep`)) +
 Row
 ----------
 
-### Sequencing Saturation
+### Sequencing Saturation `r infoIcon("sequencingDepthCurve")`
 
 ```{r}
 saturation_data <- fromJSON(params$saturation_json)
@@ -433,7 +627,7 @@ plot_ly(saturation_data, x = ~reads, y= ~saturation,
     toWebGL()
 ```
 
-### Median Genes per Cell
+### Median Genes per Cell `r infoIcon("medianGeneCurve")`
 
 ```{r}
 plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
@@ -484,7 +678,7 @@ Running Info {data-orientation=rows}
 Row
 ----------
 
-### Running Information
+### Running Information `r infoIcon("runningInfo")`
 
 ```{r}
 version_info <- fromJSON(params$version_json)

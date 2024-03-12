@@ -39,7 +39,7 @@ process REPORT{
             sampleName = "${meta.id}",
             starsolo_out = "${starsolo_summary}",
             featureStats = "${meta.id}.featureCoverage_stats.json",
-            geneCoverage = "${prefix}.scaled.tab",
+            geneCoverage = "${meta.id}.scaled.tab",
             starsolo_bc = "$starsolo_UMI_file",
             starsolo_matrixDir="${starsolo_filteredDir}",
             nCPUs = "$task.cpus",
