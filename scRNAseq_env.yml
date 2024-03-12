@@ -19,6 +19,7 @@ dependencies:
   - r-dt
   - r-future
   - r-seurat
+  - r-bsicons
   - bedtools
   - bioconductor-limma
   - gawk
@@ -26,8 +27,6 @@ dependencies:
   - gzip
   - coreutils
   - jq
-  - qualimap
-  - r-seuratdisk
   - r-rhpcblasctl
   - trust4>=1.0.12
   - r-seqinr
