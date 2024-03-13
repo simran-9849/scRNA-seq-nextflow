@@ -7,7 +7,7 @@
 FROM quay.io/condaforge/miniforge-pypy3
 
 ## Maintainer
-MAINTAINER oben <obennoname@gmail.com>
+MAINTAINER Zhixia Xiao <obennoname@gmail.com>
 
 ## Setup conda env
 USER root
@@ -33,4 +33,4 @@ RUN groupadd -r -g 1000 ubuntu && useradd -m -r -g ubuntu -u 1000 ubuntu
 RUN chown -R ubuntu: /app
 USER ubuntu
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
