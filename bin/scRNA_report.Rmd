@@ -37,7 +37,6 @@ library(plotly)
 library(kableExtra)
 library(Seurat)
 library(future)
-library(SeuratDisk)
 
 set.seed(1234)
 plan(multisession, workers = as.numeric(params$nCPUs))
@@ -51,7 +50,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r modal, include=FALSE}
+```{r infoIcon, include=FALSE}
 infoIcon <- function(targetEl, size = "1.2rem"){
   querySelector <- paste0("#", targetEl)
   ## Make HTML
@@ -97,7 +96,9 @@ createModal <- function(Id, expl_tbl){
    )
    return(outTag)
 }
+```
 
+```{r modal, echo = FALSE}
 expl_tbl <- tribble(
     ~title, ~content,
     "Estimated Number of Cells",
@@ -291,14 +292,6 @@ seuratData <- CreateSeuratObject(counts=STARSolo,
                              min.features=0, project=params$sampleName)
 seuratData[['run']]=params$sampleName
 seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
-
-## save a raw h5seurat file
-SaveH5Seurat(
-    seuratData, 
-    filename = paste0(params$sampleName, ".raw.h5seurat"), 
-    overwrite = TRUE,
-    verbose = FALSE
-)
 
 ## Plot the genes counts, RNAs counts and mitochondrial proportions.
 qcPlot <- VlnPlot(object=seuratData, features=c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3, group.by = "run")
@@ -599,7 +592,7 @@ qcPlot
 ### Gene Coverage `r infoIcon("geneCoverage")`
 
 ```{r}
-dep <- read_tsv("scaled.tab", skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
+dep <- read_tsv(params$geneCoverage, skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
 geneCoverage_df <- tibble(pos = 1:length(dep), dep = dep)
 ggplot(geneCoverage_df, aes(x=`pos`, y=`dep`)) +
     geom_line(size=1, color = "#551a8b", alpha=0.8) +
