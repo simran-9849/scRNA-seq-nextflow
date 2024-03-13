@@ -9,9 +9,9 @@ dependencies:
   - cutadapt>=3.5
   - fastx_toolkit
   - fastqc>=0.11.9
-  - r-base>=4.0
+  - r-base>=4.2
   - r-flexdashboard
-  - r-bslib==0.4.0
+  - r-bslib==0.4.2
   - r-rmarkdown
   - r-scales
   - r-tidyverse
@@ -23,7 +23,6 @@ dependencies:
   - r-seurat==4.4.0
   - r-seuratobject==4.1.4
   - r-matrix==1.6_1.1
-  - r-bsicons
   - bedtools
   - bioconductor-limma
   - gawk
