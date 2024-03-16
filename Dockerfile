@@ -14,6 +14,8 @@ USER root
 ## install tini for init process
 ## tini was already used by miniforge-pypy3
 ##RUN apt update && apt install -y git tini
+## register Tini as a child subreaper
+ENV TINI_SUBREAPER=true
 
 ## Setup workdir
 WORKDIR /app
