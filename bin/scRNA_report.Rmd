@@ -372,9 +372,13 @@ valueBox(cellNum, icon = "fa-circle-notch", color = "info")
 ### Mean Reads per Cell
 
 ```{r}
-readsMean <- starsolo_summary %>% 
-    filter(item == "Mean Reads per Cell") %>% 
+## Use 10X style calculation instead of starsolo style
+totalReads <- starsolo_summary %>% 
+    filter(item == "Number of Reads") %>% 
     pull(value)
+readsMean <- (as.numeric(str_remove_all(totalReads, ",")) / as.numeric(str_remove_all(cellNum, ","))) %>% 
+    round() %>%
+    label_comma()()
 valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 ```
 
@@ -411,6 +415,12 @@ d <- starsolo_summary %>%
                        "Median GeneFull per Cell",
                        "Total Gene Detected",
                        "Total GeneFull Detected"))
+d <- d %>% 
+    mutate(item = str_replace(item, "Mean Reads per Cell", "Mean Reads per Cell (STARsolo style)"))
+idx <- which(d$item == "Mean Reads per Cell (STARsolo style)")
+d <- d %>%
+    add_row(item = "Mean Reads per Cell (cellRanger style)", value = readsMean, .before = idx)
+
 names(d) <- c("","")                       
 d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
 ```
