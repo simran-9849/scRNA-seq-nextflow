@@ -6,8 +6,7 @@ process CHECK_SATURATION {
         enabled: params.publishSaturation as boolean
 
     input:
-    tuple val(meta), path(starsoloBAM)
-    tuple val(meta), path(starsolo_filteredDir)
+    tuple val(meta), path(starsoloBAM), path(starsolo_filteredDir)
     path(whitelist)
 
     output:

@@ -3,8 +3,7 @@ process GENECOVERAGE {
     label 'process_medium'
 
     input:
-    tuple val(meta), path(bam)
-    tuple val(meta), path(bai)
+    tuple val(meta), path(bam), path(bai)
     path gtf
 
     output:
@@ -31,8 +30,7 @@ process FEATURESTATS {
     label 'process_high'
 
     input:
-    tuple val(meta), path(bam)
-    tuple val(meta), path(bai)
+    tuple val(meta), path(bam), path(bai)
     path gtf
 
     output:

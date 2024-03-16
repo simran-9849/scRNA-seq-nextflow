@@ -43,6 +43,8 @@ workflow scRNAseq {
     if (!params.input) { exit 1, 'Input samplesheet not specified!' }
     if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
     if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
+    // only support unique-gene reads for now
+    if (params.soloMultiMappers != "Unique") { exit 1, 'Only support unique-gene reads for now, please use soloMultiMappers = "Unique" instead!' }
 
     Channel
     .fromPath(params.input)
@@ -80,9 +82,12 @@ workflow scRNAseq {
     ch_star_multiqc               = Channel.empty()
 
     ch_whitelist = Channel.fromPath(params.whitelist.split(" ").toList())
+
+    // concatenate reads as single input channel
+    // after concatenation, the first one is bc read, the second is cDNA read
+    ch_starsolo_inputReads = ch_bc_read.join(ch_cDNA_read, by:[0]).view()
     STARSOLO(
-        ch_cDNA_read,
-        ch_bc_read,
+        ch_starsolo_inputReads,
         ch_genomeDir,
         ch_genomeGTF,
         ch_whitelist.toList()
@@ -93,77 +98,80 @@ workflow scRNAseq {
     ch_starsolo_summary = STARSOLO.out.summary_unique
     ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
 
-    if(params.soloMultiMappers != "Unique"){
-        STARSOLO_MULTIPLE(
-            STARSOLO.out.rawDir
-        )
+    //if(params.soloMultiMappers != "Unique"){
+    //    STARSOLO_MULTIPLE(
+    //        STARSOLO.out.rawDir
+    //    )
+    //    CHECK_SATURATION(
+    //        ch_genome_bam,
+    //        STARSOLO_MULTIPLE.out.filteredDir,
+    //        ch_whitelist.toList()
+    //    )
+    //    STARSOLO_MULT_SUMMARY(
+    //        STARSOLO.out.cellReads_stats,
+    //        STARSOLO_MULTIPLE.out.filteredDir,
+    //        STARSOLO.out.summary_unique,
+    //        CHECK_SATURATION.out.outJSON
+    //    )
+    //    STARSOLO_MULT_UMI(
+    //        STARSOLO.out.cellReads_stats   
+    //    )
+    //    GET_VERSIONS(
+    //        CHECK_SATURATION.out.outJSON
+    //    )
+    //}else{
+
+        ch_saturation_input = ch_genome_bam.join(ch_filteredDir, by:[0])
         CHECK_SATURATION(
-            ch_genome_bam,
-            STARSOLO_MULTIPLE.out.filteredDir,
+            ch_saturation_input,
             ch_whitelist.toList()
-        )
-        STARSOLO_MULT_SUMMARY(
-            STARSOLO.out.cellReads_stats,
-            STARSOLO_MULTIPLE.out.filteredDir,
-            STARSOLO.out.summary_unique,
-            CHECK_SATURATION.out.outJSON
-        )
-        STARSOLO_MULT_UMI(
-            STARSOLO.out.cellReads_stats   
         )
         GET_VERSIONS(
             CHECK_SATURATION.out.outJSON
         )
-    }else{
-        CHECK_SATURATION(
-            ch_genome_bam,
-            ch_filteredDir,
-            ch_whitelist.toList()
-        )
-        GET_VERSIONS(
-            CHECK_SATURATION.out.outJSON
-        )
-    }
+    //}
 
     ch_featureStats   = Channel.empty()
     ch_geneCoverage   = Channel.empty()
 
+    ch_geneCoverage_input = ch_genome_bam.join(ch_genome_bam_index, by:[0])
     FEATURESTATS(
-        ch_genome_bam,
-        ch_genome_bam_index,
+        ch_geneCoverage_input,
         ch_genomeGTF
     )
     
     GENECOVERAGE(
-        ch_genome_bam,
-        ch_genome_bam_index,
+        ch_geneCoverage_input,
         ch_genomeGTF
     )
 
     ch_featureStats  = FEATURESTATS.out.stats
     ch_geneCoverage  = GENECOVERAGE.out.matrix
 
-    if(params.soloMultiMappers != "Unique"){
+    //if(params.soloMultiMappers != "Unique"){
+    //    REPORT(
+    //        STARSOLO_MULT_SUMMARY.out.summary_multiple,
+    //        STARSOLO_MULT_UMI.out.UMI_file_multiple,
+    //        STARSOLO_MULTIPLE.out.filteredDir,
+    //        ch_featureStats,
+    //        ch_geneCoverage,
+    //        CHECK_SATURATION.out.outJSON,
+    //        GET_VERSIONS.out.versions
+    //    )
+    //}else{
+        ch_starsolo_summary
+        .join(ch_starsolo_UMI, by:[0])
+        .join(ch_filteredDir, by:[0])
+        .join(ch_featureStats, by:[0])
+        .join(ch_geneCoverage, by:[0])
+        .join(CHECK_SATURATION.out.outJSON, by:[0])
+        .join(GET_VERSIONS.out.versions, by:[0])
+        .set{ ch_report_input }
+        ch_report_input.view()
         REPORT(
-            STARSOLO_MULT_SUMMARY.out.summary_multiple,
-            STARSOLO_MULT_UMI.out.UMI_file_multiple,
-            STARSOLO_MULTIPLE.out.filteredDir,
-            ch_featureStats,
-            ch_geneCoverage,
-            CHECK_SATURATION.out.outJSON,
-            GET_VERSIONS.out.versions
+            ch_report_input
         )
-    }else{
-        REPORT(
-            ch_starsolo_summary,
-            ch_starsolo_UMI,
-            ch_filteredDir,
-            ch_featureStats,            
-            ch_geneCoverage,
-            CHECK_SATURATION.out.outJSON,
-            GET_VERSIONS.out.versions
-        )
-    }
+    //}
 }
 
 workflow mkref {

@@ -14,8 +14,7 @@ process STARSOLO {
         }
     }
     input:
-    tuple val(meta), path(cDNA_read)
-    tuple val(meta), path(bc_read)
+    tuple val(meta), path(bc_read), path(cDNA_read)
     path index
     path gtf
     path whitelist

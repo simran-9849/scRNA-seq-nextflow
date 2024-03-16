@@ -10,13 +10,7 @@ process REPORT{
         enabled: params.outdir as boolean
 
     input:
-    tuple val(meta), path(starsolo_summary)
-    tuple val(meta), path(starsolo_UMI_file)
-    tuple val(meta), path(starsolo_filteredDir)
-    tuple val(meta), path(featureStats)
-    tuple val(meta), path(geneCoverage)
-    tuple val(meta), path(saturation_outJSON)
-    tuple val(meta), path(version_json)
+    tuple val(meta), path(starsolo_summary), path(starsolo_UMI_file), path(starsolo_filteredDir), path(featureStats), path(geneCoverage), path(saturation_outJSON), path(version_json)
 
     output:
     tuple val(meta), path("*report.html") , emit: report

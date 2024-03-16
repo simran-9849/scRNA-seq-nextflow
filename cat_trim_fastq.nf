@@ -1,13 +1,7 @@
-// Import generic module functions
-include { initOptions; saveFiles; getSoftwareName; getProcessName; getPathFromList } from './modules/nf-core_rnaseq/functions'
-
-params.options = [:]
-options        = initOptions(params.options)
-
 process CAT_TRIM_FASTQ {
     tag "$meta.id"
     label 'process_low'
-    publishDir "${params.outdir}",
+    publishDir "${params.outdir}/cutqc/${meta.id}",
         mode: params.publish_dir_mode,
         saveAs: { filename ->
         if(filename=~/versions.yml/){
@@ -15,16 +9,9 @@ process CAT_TRIM_FASTQ {
         }else if(!params.save_merged_fastq && filename=~/\.(fq|fastq)\.gz/){
             return null // don't publish fastq file
         }else{
-            return "${getPathFromList(['cutqc'])}/$filename"
+            return filename
         }
     }
-
-    // conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
-    // if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-    //     container "https://containers.biocontainers.pro/s3/SingImgsRepo/biocontainers/v1.2.0_cv1/biocontainers_v1.2.0_cv1.img"
-    // } else {
-    //     container "biocontainers/biocontainers:v1.2.0_cv1"
-    // }
 
     input:
     tuple val(meta), path(reads)
@@ -35,7 +22,7 @@ process CAT_TRIM_FASTQ {
     tuple val(meta), path("*_cutqc_report.html"), emit: cutqc_report
 
     script:
-    def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def prefix   = "${meta.id}"
     def readList = reads.collect{ it.toString() }
     if (readList.size >= 2) {
         def read1 = []
@@ -58,10 +45,6 @@ process CAT_TRIM_FASTQ {
             ## remove merged fq.gz
             rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
             
-            cat <<-END_VERSIONS > versions.yml
-            ${getProcessName(task.process)}:
-            ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
             """
         }else{
             """
@@ -80,10 +63,6 @@ process CAT_TRIM_FASTQ {
             ## remove merged fq.gz
             rm ${prefix}_1.merged.fq.gz ${prefix}_2.merged.fq.gz
             
-            cat <<-END_VERSIONS > versions.yml
-            ${getProcessName(task.process)}:
-            ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
-            END_VERSIONS
             """
         }
     }else{
