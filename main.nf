@@ -85,7 +85,7 @@ workflow scRNAseq {
 
     // concatenate reads as single input channel
     // after concatenation, the first one is bc read, the second is cDNA read
-    ch_starsolo_inputReads = ch_bc_read.join(ch_cDNA_read, by:[0]).view()
+    ch_starsolo_inputReads = ch_bc_read.join(ch_cDNA_read, by:[0])
     STARSOLO(
         ch_starsolo_inputReads,
         ch_genomeDir,
@@ -167,7 +167,6 @@ workflow scRNAseq {
         .join(CHECK_SATURATION.out.outJSON, by:[0])
         .join(GET_VERSIONS.out.versions, by:[0])
         .set{ ch_report_input }
-        ch_report_input.view()
         REPORT(
             ch_report_input
         )
