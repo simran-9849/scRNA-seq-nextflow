@@ -1,7 +1,7 @@
 process CHECK_SATURATION {
     tag "${meta.id}"
     label 'process_high'
-    publishDir "${params.outdir}/saturation/",
+    publishDir "${params.outdir}/${meta.id}/saturation/",
         mode: "${params.publish_dir_mode}",
         enabled: params.publishSaturation as boolean
 

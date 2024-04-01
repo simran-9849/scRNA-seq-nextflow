@@ -1,7 +1,7 @@
 process CAT_TRIM_FASTQ {
     tag "$meta.id"
     label 'process_low'
-    publishDir "${params.outdir}/cutqc/${meta.id}",
+    publishDir "${params.outdir}/${meta.id}/cutqc",
         mode: params.publish_dir_mode,
         saveAs: { filename ->
         if(filename=~/versions.yml/){

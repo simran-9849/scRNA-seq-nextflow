@@ -1,7 +1,7 @@
 process GET_VERSIONS {
     tag "${meta.id}"
     label 'process_low'
-    publishDir "${params.outdir}/report",
+    publishDir "${params.outdir}/${meta.id}/final",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
 

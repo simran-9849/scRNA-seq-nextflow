@@ -1,7 +1,7 @@
 process STARSOLO {
     tag "${meta.id}"
     label 'process_high'
-    publishDir "${params.outdir}/starsolo/${meta.id}",
+    publishDir "${params.outdir}/${meta.id}/starsolo",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean,
         saveAs: { filename ->

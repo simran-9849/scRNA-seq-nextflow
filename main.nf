@@ -95,6 +95,7 @@ workflow scRNAseq {
     ch_genome_bam       = STARSOLO.out.bam
     ch_genome_bam_index = STARSOLO.out.bai
     ch_filteredDir      = STARSOLO.out.filteredDir
+    ch_rawDir           = STARSOLO.out.rawDir
     ch_starsolo_summary = STARSOLO.out.summary_unique
     ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
 
@@ -161,6 +162,7 @@ workflow scRNAseq {
     //}else{
         ch_starsolo_summary
         .join(ch_starsolo_UMI, by:[0])
+        .join(ch_rawDir, by:[0])
         .join(ch_filteredDir, by:[0])
         .join(ch_featureStats, by:[0])
         .join(ch_geneCoverage, by:[0])
