@@ -149,7 +149,7 @@ calc_saturation(){
     local nRow=$(awk -v nTotal=$nTotal -v frac=$percentage 'BEGIN{printf "%i\n", nTotal*frac}')
     tmpDownFile=$(mktemp -p ./)
     ## use sort -R instead of shuf to save memory
-    sort -R --parallel $thread -T ./ $readInfo | head -n $nRow > $tmpDownFile
+    awk -v cutoff=$percentage 'BEGIN{srand()}{if(rand()<=cutoff){print}}' $readInfo  > $tmpDownFile
     tmpSortedDownFile=$(mktemp -p ./)
     sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -T ./ $tmpDownFile > $tmpSortedDownFile
     rm $tmpDownFile
