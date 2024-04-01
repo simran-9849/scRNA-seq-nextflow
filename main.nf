@@ -13,6 +13,16 @@ include { CHECK_SATURATION } from "./sequencing_saturation"
 include { GET_VERSIONS } from "./present_version"
 include { REPORT } from "./report"
 
+def entryWorkflow() {
+    int idx = -1
+    cmd = workflow.commandLine.split(" ")
+    if(cmd.contains("-entry")){
+        idx = Arrays.asList(cmd).indexOf("-entry") + 1
+        return cmd[idx]
+    }else{
+        return "scRNAseq"
+    }
+}
 
 def create_fastq_channel(LinkedHashMap row) {
     def meta = [:]
@@ -31,6 +41,14 @@ def create_fastq_channel(LinkedHashMap row) {
         exit 1, "ERROR: Please check input samplesheet -> Please specify expected_cells column"
     }
     meta.expected_cells = row.expected_cells
+
+    if(entryWorkflow() == "vdj"){
+        if(!row.feature_types){
+            exit 1, "ERROR: Please check input samplesheet -> feature_types column does not exist!\n"
+        }else{
+            meta.feature_types = row.feature_types
+        }
+    }
 
     array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
 
@@ -204,34 +222,6 @@ include { TRUST4_VDJ; VDJ_METRICS } from "./vdj/trust4_vdj"
 include { GET_VERSIONS_VDJ } from "./vdj/present_version_vdj"
 include { REPORT_VDJ } from "./vdj/report_vdj"
 
-def create_fastq_channel_featureTypes(LinkedHashMap row) {
-    def meta = [:]
-    meta.id           = row.sample
-
-    def array = []
-    if (!file(row.fastq_1).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.bc_read}"
-    }
-
-    if (!file(row.fastq_2).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.cDNA_read}"
-    }
-
-    if(!row.feature_types){
-        exit 1, "ERROR: Please check input samplesheet -> feature_types column does not exist!\n"
-    }
-
-    if(!row.expected_cells){
-        exit 1, "ERROR: Please check input samplesheet -> expected_cells column does not exist!\n"
-    }
-
-    meta.feature_types = row.feature_types
-    meta.expected_cells = row.expected_cells
-    array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
-
-    return array
-}
-
 workflow vdj {
     vdj_process()
     vdj_report(
@@ -262,7 +252,7 @@ workflow vdj_process {
     Channel
         .fromPath(params.input)
         .splitCsv(header:true)
-        .map{ create_fastq_channel_featureTypes(it) }
+        .map{ create_fastq_channel(it) }
         .map {
             meta, fastq ->
                 // meta.id = meta.id.split('_')[0..-2].join('_')
