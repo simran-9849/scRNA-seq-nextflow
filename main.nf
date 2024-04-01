@@ -7,7 +7,7 @@ nextflow.enable.dsl=2
 // NF-CORE MODULES
 
 include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
-include { STARSOLO; STAR_MKREF; STARSOLO_MULTIPLE; STARSOLO_MULT_SUMMARY; STARSOLO_MULT_UMI } from "./starsolo"
+include { STARSOLO; STAR_MKREF; } from "./starsolo"
 include { GENECOVERAGE; FEATURESTATS } from "./gene_coverage"
 include { CHECK_SATURATION } from "./sequencing_saturation"
 include { GET_VERSIONS } from "./present_version"
@@ -26,6 +26,11 @@ def create_fastq_channel(LinkedHashMap row) {
     if (!file(row.fastq_2).exists()) {
         exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.cDNA_read}"
     }
+    
+    if(!row.expected_cells){
+        exit 1, "ERROR: Please check input samplesheet -> Please specify expected_cells column"
+    }
+    meta.expected_cells = row.expected_cells
 
     array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
 

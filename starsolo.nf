@@ -42,7 +42,7 @@ process STARSOLO {
     def prefix     = "${meta.id}"
     //def barcodeMate = params.bc_read == "fastq_1" ? 1 : 2
     // Since starsolo default use single-end mode, activate this label for qualimap option
-    meta.single_end = true
+    //meta.single_end = true
 
     // check CB_UMI_Complex params
     if(params.soloType == "CB_UMI_Complex"){
@@ -55,6 +55,13 @@ process STARSOLO {
         if(params.soloCBmatchWLtype!="1MM" && params.soloCBmatchWLtype!="Exact"){
             exit 1, "ERROR: soloType = 'CB_UMI_Complex' -> Please use 1MM or Exact for soloCBmatchWLtype!\n"
         }
+    }
+
+    def soloCellFilter = "$params.soloCellFilter"
+    if(params.soloCellFilter=="EmptyDrops_CR"){
+        soloCellFilter = "EmptyDrops_CR ${meta.expected_cells} 0.99 10 45000 90000 500 0.01 20000 0.01 10000"
+    }else if(params.soloCellFilter=="CellRanger2.2"){
+        soloCellFilter = "CellRanger2.2 ${meta.expected_cells} 0.99 10"
     }
 
     scriptString = []
@@ -80,7 +87,7 @@ process STARSOLO {
     --soloUMIdedup $params.soloUMIdedup \\
     --soloMultiMappers $params.soloMultiMappers \\
     --soloFeatures $params.soloFeatures \\
-    --soloCellFilter $params.soloCellFilter \\
+    --soloCellFilter $soloCellFilter \\
     --soloCellReadStats Standard \\
     --outSAMattributes NH HI nM AS CR UR CB UB GX GN gx gn sS sQ sM \\
     --outSAMtype ${params.outSAMtype} \\
@@ -149,78 +156,78 @@ process STAR_MKREF {
     """
 }
 
-process STARSOLO_MULTIPLE {
-    tag "${meta.id}"
-    label 'process_low'
-    publishDir "${params.outdir}/starsolo/${meta.id}",
-        mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
-
-    input:
-    tuple val(meta), path(starsolo_rawDir)
-
-    output:
-    tuple val(meta), path('raw_mult')     , emit: rawDir
-    tuple val(meta), path('filtered_mult'), emit: filteredDir
-
-    script:
-    """
-    mkdir -p raw_mult
-    mkdir -p filtered_mult
-    cp ${starsolo_rawDir}/*.tsv.gz raw_mult/
-    cp ${starsolo_rawDir}/UniqueAndMult*.mtx.gz raw_mult/matrix.mtx.gz
-    gunzip -f raw_mult/*.gz
-    STAR --runMode soloCellFiltering raw_mult/ filtered_mult/ \\
-    --soloCellFilter $params.soloCellFilter
-
-    pigz -p $task.cpus raw_mult/*
-    pigz -p $task.cpus filtered_mult/*
-    """
-}
-
-process STARSOLO_MULT_SUMMARY {
-    // Update starsolo summary file for multiple gene reads
-    tag "${meta.id}"
-    label 'process_low'
-    publishDir "${params.outdir}/starsolo/${meta.id}",
-        mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
-
-    input:
-    tuple val(meta), path(cellReads_stats)
-    tuple val(meta), path(starsolo_filteredMultiDir)
-    tuple val(meta), path(starsolo_unique_summary)
-    tuple val(meta), path(saturation_json)
-
-    output:
-    tuple val(meta), path('Summary.multiple.csv')   , emit: summary_multiple
-    
-    script:
-    """
-    update_starsolo_summary.R ${cellReads_stats} \\
-    ${starsolo_filteredMultiDir}/barcodes.tsv.gz \\
-    ${starsolo_filteredMultiDir} \\
-    ${saturation_json} \\
-    ${starsolo_unique_summary} \\
-    Summary.multiple.csv
-    """
-}
-
-process STARSOLO_MULT_UMI {
-    tag "${meta.id}"
-    label 'process_low'
-    publishDir "${params.outdir}/starsolo/${meta.id}",
-        mode: "${params.publish_dir_mode}",
-        enabled: params.outdir as boolean
-
-    input:
-    tuple val(meta), path(cellReads_stats)
-
-    output:
-    tuple val(meta), path('UMIperCellSorted.multiple.txt')   , emit: UMI_file_multiple
-    
-    script:
-    """
-    update_umi_file.R ${cellReads_stats} UMIperCellSorted.multiple.txt
-    """
-}
+//process STARSOLO_MULTIPLE {
+//    tag "${meta.id}"
+//    label 'process_low'
+//    publishDir "${params.outdir}/starsolo/${meta.id}",
+//        mode: "${params.publish_dir_mode}",
+//        enabled: params.outdir as boolean
+//
+//    input:
+//    tuple val(meta), path(starsolo_rawDir)
+//
+//    output:
+//    tuple val(meta), path('raw_mult')     , emit: rawDir
+//    tuple val(meta), path('filtered_mult'), emit: filteredDir
+//
+//    script:
+//    """
+//    mkdir -p raw_mult
+//    mkdir -p filtered_mult
+//    cp ${starsolo_rawDir}/*.tsv.gz raw_mult/
+//    cp ${starsolo_rawDir}/UniqueAndMult*.mtx.gz raw_mult/matrix.mtx.gz
+//    gunzip -f raw_mult/*.gz
+//    STAR --runMode soloCellFiltering raw_mult/ filtered_mult/ \\
+//    --soloCellFilter $params.soloCellFilter
+//
+//    pigz -p $task.cpus raw_mult/*
+//    pigz -p $task.cpus filtered_mult/*
+//    """
+//}
+//
+//process STARSOLO_MULT_SUMMARY {
+//    // Update starsolo summary file for multiple gene reads
+//    tag "${meta.id}"
+//    label 'process_low'
+//    publishDir "${params.outdir}/starsolo/${meta.id}",
+//        mode: "${params.publish_dir_mode}",
+//        enabled: params.outdir as boolean
+//
+//    input:
+//    tuple val(meta), path(cellReads_stats)
+//    tuple val(meta), path(starsolo_filteredMultiDir)
+//    tuple val(meta), path(starsolo_unique_summary)
+//    tuple val(meta), path(saturation_json)
+//
+//    output:
+//    tuple val(meta), path('Summary.multiple.csv')   , emit: summary_multiple
+//    
+//    script:
+//    """
+//    update_starsolo_summary.R ${cellReads_stats} \\
+//    ${starsolo_filteredMultiDir}/barcodes.tsv.gz \\
+//    ${starsolo_filteredMultiDir} \\
+//    ${saturation_json} \\
+//    ${starsolo_unique_summary} \\
+//    Summary.multiple.csv
+//    """
+//}
+//
+//process STARSOLO_MULT_UMI {
+//    tag "${meta.id}"
+//    label 'process_low'
+//    publishDir "${params.outdir}/starsolo/${meta.id}",
+//        mode: "${params.publish_dir_mode}",
+//        enabled: params.outdir as boolean
+//
+//    input:
+//    tuple val(meta), path(cellReads_stats)
+//
+//    output:
+//    tuple val(meta), path('UMIperCellSorted.multiple.txt')   , emit: UMI_file_multiple
+//    
+//    script:
+//    """
+//    update_umi_file.R ${cellReads_stats} UMIperCellSorted.multiple.txt
+//    """
+//}
