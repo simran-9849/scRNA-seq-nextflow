@@ -50,5 +50,5 @@ jobs:
             obenno/starscope_scrnaseq_env:${{ env.VERSION }}
             registry-intl.cn-hangzhou.aliyuncs.com/thunderbio/starscope_scrnaseq_env:latest
             registry-intl.cn-hangzhou.aliyuncs.com/thunderbio/starscope_scrnaseq_env:${{ env.VERSION }}
-          cache-from: type=registry,ref=obenno/starscope_scRNAseq_env:latest
+          cache-from: type=registry,ref=obenno/starscope_scrnaseq_env:latest
           cache-to: type=inline
