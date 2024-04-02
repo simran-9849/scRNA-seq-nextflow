@@ -36,3 +36,4 @@ dependencies:
   - parallel>=20230922
   - deeptools
   - subread
+  - multiqc

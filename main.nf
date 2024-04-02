@@ -6,7 +6,9 @@ nextflow.enable.dsl=2
 
 // NF-CORE MODULES
 
-include { CAT_TRIM_FASTQ } from './cat_trim_fastq' addParams( options: ['publish_files': false] )
+include { CAT_FASTQ } from './cat_fastq'
+include { TRIM_FASTQ } from './trim_fastq'
+include { MULTIQC } from './multiqc'
 include { STARSOLO; STAR_MKREF; } from "./starsolo"
 include { GENECOVERAGE; FEATURESTATS } from "./gene_coverage"
 include { CHECK_SATURATION } from "./sequencing_saturation"
@@ -85,20 +87,33 @@ workflow scRNAseq {
     .set { ch_fastq }
 
     // MODULE: Concatenate FastQ files from the same sample if required
+    CAT_FASTQ( ch_fastq )
+
     ch_bc_read = Channel.empty()
     ch_cDNA_read = Channel.empty()
-    CAT_TRIM_FASTQ( ch_fastq )
+
     if ( params.bc_read == "fastq_1" ){
-        ch_bc_read = CAT_TRIM_FASTQ.out.read1
-        ch_cDNA_read = CAT_TRIM_FASTQ.out.read2
+        ch_bc_read = CAT_FASTQ.out.read1
+        ch_cDNA_read = CAT_FASTQ.out.read2
     }else{
-        ch_bc_read = CAT_TRIM_FASTQ.out.read2
-        ch_cDNA_read = CAT_TRIM_FASTQ.out.read1
+        ch_bc_read = CAT_FASTQ.out.read2
+        ch_cDNA_read = CAT_FASTQ.out.read1
     }
+    ch_merged_fastq = ch_bc_read.join(ch_cDNA_read, by:[0])
+
+    TRIM_FASTQ( ch_merged_fastq )
+    CAT_FASTQ.out.rea1
+    .join(CAT_FASTQ.out.read2, by:[0])
+    .join(TRIM_FASTQ.out.bc_read, by:[0])
+    .join(TRIM_FASTQ.out.cDNA_read, by:[0])
+    .join(TRIM_FASTQ.out.report_JSON, by:[0])
+    .set { ch_multiqc_input }
+
+    MULTIQC( ch_multiqc_input )
 
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
-
+    
     ch_genome_bam                 = Channel.empty()
     ch_genome_bam_index           = Channel.empty()
     ch_starsolo_out               = Channel.empty()
@@ -108,7 +123,7 @@ workflow scRNAseq {
 
     // concatenate reads as single input channel
     // after concatenation, the first one is bc read, the second is cDNA read
-    ch_starsolo_inputReads = ch_bc_read.join(ch_cDNA_read, by:[0])
+    ch_starsolo_inputReads = TRIM_FASTQ.out.bc_read.join(TRIM_FASTQ.out.cDNA_read, by:[0])
     STARSOLO(
         ch_starsolo_inputReads,
         ch_genomeDir,
