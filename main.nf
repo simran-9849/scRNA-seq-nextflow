@@ -102,7 +102,7 @@ workflow scRNAseq {
     ch_merged_fastq = ch_bc_read.join(ch_cDNA_read, by:[0])
 
     TRIM_FASTQ( ch_merged_fastq )
-    CAT_FASTQ.out.rea1
+    CAT_FASTQ.out.read1
     .join(CAT_FASTQ.out.read2, by:[0])
     .join(TRIM_FASTQ.out.bc_read, by:[0])
     .join(TRIM_FASTQ.out.cDNA_read, by:[0])
