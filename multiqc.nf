@@ -13,7 +13,7 @@ process MULTIQC {
     }
 
     input:
-    tuple val(sampleID),
+    tuple val(meta),
           path(merged_read1),
           path(merged_read2),
           path(trimmed_bc_read),
