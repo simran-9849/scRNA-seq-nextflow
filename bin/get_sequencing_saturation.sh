@@ -51,7 +51,7 @@ thread=4
 
 ## Inputs
 whiteList=$1
-cellList=$2
+cellListInput=$2
 multiMapper=$3
 inputBAM=$4
 thread=$5
@@ -84,76 +84,105 @@ else
     exit 1
 fi
 
-
+logTime(){
+    local info=$1
+    local currentTime=$(date +"%F %T")
+    >&2 printf "$info at %s %s\n" $currentTime
+}
 
 ## Process the BAM file and generate readInfo file
-currentTime=$(date +"%F %T")
->&2 printf "Starting processing bam file at %s %s\n" $currentTime
-
-tmpReadList=$(mktemp -p ./)
-samtools view -@ $thread $inputBAM |
-awk '
-{
-    readID=$1;
-    CB="-"
-    UMI="-"
-    gene="-"
-    for(i=12;i<=NF;i++){
-        if($i~/^CB/){
-            CB=substr($i, 6)
-        }else if($i~/^UB/){
-            UMI=substr($i, 6)
-        }else if($i~/^'$geneTag'/){
-            gene=substr($i, 6)
-        }
-    };
-    print readID"\t"CB"\t"UMI"\t"gene
-}
-' > $tmpReadList
+logTime "Starting processing bam file"
 
 readInfo=$(mktemp -p ./)
 if [[ $whiteList != "None" ]] && [[ -f $whiteList ]]
 then
+    samtools view -@ $thread $inputBAM |
     awk '
     NR==FNR{
-      wl[$1]
+        wl[$1]
     }
     NR>FNR{
-      CB=$2
-      gene=$4
-      if((CB in wl) && (gene !="-")){
-        print
-      }
+        readID=$1;
+        CB="-"
+        UMI="-"
+        gene="-"
+        for(i=12;i<=NF;i++){
+            if($i~/^CB/){
+                CB=substr($i, 6)
+            }else if($i~/^UB/){
+                UMI=substr($i, 6)
+            }else if($i~/^'$geneTag'/){
+                gene=substr($i, 6)
+            }
+        };
+        if((CB in wl) && (gene !="-")){
+            print readID"\t"CB"\t"UMI"\t"gene
+        }
     }
-    ' $whiteList $tmpReadList > $readInfo
+    ' $whiteList - > $readInfo
 else
+    samtools view -@ $thread $inputBAM |
     awk '
     {
-      CB=$2
-      gene=$4
-      if((CB !="-") && (gene !="-")){
-        print
-      }
+        readID=$1;
+        CB="-"
+        UMI="-"
+        gene="-"
+        for(i=12;i<=NF;i++){
+            if($i~/^CB/){
+                CB=substr($i, 6)
+            }else if($i~/^UB/){
+                UMI=substr($i, 6)
+            }else if($i~/^'$geneTag'/){
+                gene=substr($i, 6)
+            }
+        };
+        if((CB !="-") && (gene !="-")){
+            print readID"\t"CB"\t"UMI"\t"gene
+        }
     }
-    ' $tmpReadList > $readInfo
+    ' > $readInfo
 fi
-rm $tmpReadList
 
-currentTime=$(date +"%F %T")
->&2 printf "Processing bam file ended at %s %s\n" $currentTime
+logTime "Processing bam file ended"
+
+prepare_downSample_read(){
+    awk '
+    BEGIN{
+        srand()
+        percentage[1]=0.05
+        percentage[2]=0.1
+        percentage[3]=0.15
+        percentage[4]=0.2
+        percentage[5]=0.25
+        percentage[6]=0.3
+        percentage[7]=0.4
+        percentage[8]=0.6
+        percentage[9]=0.8
+        for(i=1;i<=length(percentage);i++){
+            downFile[i]="sub_"percentage[i]"_readInfo"
+        }
+    }
+    {
+        randNumber=rand()
+        for(i=1;i<=length(percentage);i++){
+            if(randNumber<=percentage[i]){
+                print > downFile[i]
+            }
+        }
+    }
+    ' $readInfo
+    ln -s $readInfo sub_1_readInfo
+}
 
 calc_saturation(){
     ## percentage is  0.0 ≤ FLOAT ≤ 1.0
-    local percentage=$1
-    local nTotal=$(wc -l $readInfo | awk '{print $1}')
-    local nRow=$(awk -v nTotal=$nTotal -v frac=$percentage 'BEGIN{printf "%i\n", nTotal*frac}')
-    tmpDownFile=$(mktemp -p ./)
-    ## use sort -R instead of shuf to save memory
-    awk -v cutoff=$percentage 'BEGIN{srand()}{if(rand()<=cutoff){print}}' $readInfo  > $tmpDownFile
-    tmpSortedDownFile=$(mktemp -p ./)
-    sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel -S 512M $thread -T ./ $tmpDownFile > $tmpSortedDownFile
-    rm $tmpDownFile
-    bedtools groupby -g 2,3 -c 1,4 -o distinct -i $tmpSortedDownFile |
+    local cellList=$1
+    local readFile=$2
+    local percentage=${readFile##sub_}
+    percentage=${percentage%%_readInfo}
+    sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u -S 512M -T ./ $readFile |
+        bedtools groupby -g 2,3 -c 1,4 -o distinct |
         awk -v percentage=$percentage '
         BEGIN{
             m=0;n=0
@@ -189,21 +218,22 @@ calc_saturation(){
             }
             print percentage"\t"meanRead"\t"medianGene"\t"n"\t"1-m/n
         }
-        ' $cellList - && rm $tmpSortedDownFile
+        ' $cellList -
 }
 
 ## Start time
-currentTime=$(date +"%F %T")
->&2 printf "Calculating sequencing saturation started at %s %s\n" $currentTime
+logTime "Start preparing downsample files"
 
+prepare_downSample_read
+## remove the original one to save space
 
-for i in {0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.6,0.8,1};
-##for i in {0.05,1}
-do
-    printf "Subsampling: %s\n" $i >&2
-    calc_saturation $i
-    printf "calculation finished...\n" >&2
-done |
+logTime "Downsample files ready"
+
+## Start time
+logTime "Starting calculating"
+export -f calc_saturation
+ls sub_*_readInfo | awk -v cellListInput=$cellListInput '{print "calc_saturation "cellListInput" "$1}' |
+    parallel -P $thread |
     jq --raw-input --slurp 'split("\n") |map(split("\t")) | .[0:-1] | map( { "percentage": .[0], "meanReadPerCell": .[1], "medianGenePerCell": .[2], "reads": .[3], "saturation": .[4] } )' > $outputJSON
 
 ## Get UMI hist for preseqR
@@ -211,27 +241,27 @@ done |
 tmpReadFile1=$(mktemp -p ./)
 tmpReadFile2=$(mktemp -p ./)
 cut -f 2,3 $readInfo > $tmpReadFile1
-sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+sort --parallel $thread -S 512M -T ./ $tmpReadFile1 > $tmpReadFile2
 uniq -c $tmpReadFile2 |
     awk '{print $1}' > $tmpReadFile1
-sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+sort --parallel $thread -S 512M -T ./ $tmpReadFile1 > $tmpReadFile2
 uniq -c $tmpReadFile2 |
     awk '{print $2"\t"$1}' > $tmpReadFile1
-sort --parallel $thread -T ./ -k 1,1n $tmpReadFile1 > $preseqR_UMI_hist
+sort --parallel $thread -S 512M -T ./ -k 1,1n $tmpReadFile1 > $preseqR_UMI_hist
 rm $tmpReadFile1 $tmpReadFile2
 ## Get gene hist for preseqR
 ## totalGeneCount summarizes all genes from different barcodes
 tmpReadFile1=$(mktemp -p ./)
 tmpReadFile2=$(mktemp -p ./)
-awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellList $readInfo > $tmpReadFile1
-sort --parallel $thread -T ./ $tmpReadFile1 |
+awk 'ARGIND==1{cell[$1]}ARGIND==2&&$3!="-"{if($2 in cell){print $4"\t"$2}}' $cellListInput $readInfo > $tmpReadFile1
+sort --parallel $thread -S 512M -T ./ $tmpReadFile1 |
     uniq -c > $tmpReadFile2
 wc -l $tmpReadFile2 | awk '{print $1}' > $totalGeneCount
 awk '{print $1}' $tmpReadFile2 > $tmpReadFile1
-sort --parallel $thread -T ./ $tmpReadFile1 > $tmpReadFile2
+sort --parallel $thread -S 512M -T ./ $tmpReadFile1 > $tmpReadFile2
 uniq -c $tmpReadFile2 |
     awk '{print $2"\t"$1}' > $tmpReadFile1
-sort --parallel $thread -T ./ -k 1,1n $tmpReadFile1 > $preseqR_gene_hist
+sort --parallel $thread -S 512M -T ./ -k 1,1n $tmpReadFile1 > $preseqR_gene_hist
 
 rm $tmpReadFile1
 rm $tmpReadFile2
