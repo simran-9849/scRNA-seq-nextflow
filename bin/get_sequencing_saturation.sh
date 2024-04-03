@@ -151,7 +151,7 @@ calc_saturation(){
     ## use sort -R instead of shuf to save memory
     awk -v cutoff=$percentage 'BEGIN{srand()}{if(rand()<=cutoff){print}}' $readInfo  > $tmpDownFile
     tmpSortedDownFile=$(mktemp -p ./)
-    sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel $thread -T ./ $tmpDownFile > $tmpSortedDownFile
+    sort -k 2,2 -k 3,3 -k 4,4 -k 1,1 -u --parallel -S 512M $thread -T ./ $tmpDownFile > $tmpSortedDownFile
     rm $tmpDownFile
     bedtools groupby -g 2,3 -c 1,4 -o distinct -i $tmpSortedDownFile |
         awk -v percentage=$percentage '
