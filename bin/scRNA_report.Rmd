@@ -626,7 +626,8 @@ Row
 saturation_data <- fromJSON(params$saturation_json)
 saturation_data <- saturation_data[["saturation_data"]] %>%
     as_tibble() %>%
-    mutate(across(.col = everything(), .fns = as.numeric))
+    mutate(across(.col = everything(), .fns = as.numeric)) %>%
+    arrange(percentage)
 
 plot_ly(saturation_data, x = ~reads, y= ~saturation,
         type = 'scatter', mode = 'lines',
