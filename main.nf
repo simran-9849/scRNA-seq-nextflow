@@ -52,7 +52,7 @@ def create_fastq_channel(LinkedHashMap row) {
         }
     }
 
-    array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+    array = [ meta, file(row.fastq_1), file(row.fastq_2) ]
 
     return array
 }
@@ -75,15 +75,7 @@ workflow scRNAseq {
     .fromPath(params.input)
     .splitCsv(header:true)
     .map{ create_fastq_channel(it) }
-    .map {
-        meta, fastq ->
-            // meta.id = meta.id.split('_')[0..-2].join('_')
-            [ meta, fastq ] }
     .groupTuple(by: [0])
-    .map {
-        meta, fastq ->
-            return [ meta, fastq.flatten() ]
-    }
     .set { ch_fastq }
 
     // MODULE: Concatenate FastQ files from the same sample if required
