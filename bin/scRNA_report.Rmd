@@ -8,6 +8,8 @@ output:
     theme: 
       bootswatch: cosmo
       version: 5
+      base_font:
+        google: Asap
 params:
   sampleName : "sampleName"
   featureStats : "sampleID.featureCoverage_stats.json"
@@ -100,6 +102,14 @@ createModal <- function(Id, expl_tbl){
        )
    )
    return(outTag)
+}
+```
+
+```{css}
+.explanation {
+  background-color: rgba(var(--bs-secondary-rgb), 0.2); 
+  border-radius: var(--bs-modal-border-radius);
+  padding: 1rem
 }
 ```
 
