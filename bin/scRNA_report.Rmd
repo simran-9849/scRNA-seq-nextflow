@@ -1,5 +1,5 @@
 ---
-title: "Thunderbio scRNA-seq Report"
+title: "ThunderBio scRNA-seq Report"
 date: "`r Sys.Date()`"
 output: 
   flexdashboard::flex_dashboard:
