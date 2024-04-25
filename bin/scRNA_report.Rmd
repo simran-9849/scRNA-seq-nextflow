@@ -50,6 +50,8 @@ knitr::opts_chunk$set(
   comment = '', fig.retina = 4,
   warning = FALSE, message = FALSE
 )
+
+html_font <- "Asap, Arial, sans-serif"
 ```
 
 ```{r infoIcon, include=FALSE}
@@ -431,8 +433,8 @@ idx <- which(d$item == "Mean Reads per Cell (STARsolo style)")
 d <- d %>%
     add_row(item = "Mean Reads per Cell (cellRanger style)", value = readsMean, .before = idx)
 
-names(d) <- c("","")                       
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+names(d) <- c("","")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
 ```
 
 ### Knee Plot `r infoIcon("kneePlot")`
@@ -486,7 +488,7 @@ d <- starsolo_summary %>%
                        "Total Gene Detected",
                        "Total GeneFull Detected"))
 names(d) <- c("","")
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
                                         
 ```
 
@@ -504,7 +506,7 @@ d <- starsolo_summary %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
     add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio))
 names(d) <- c("","")
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
 ```
 
 Cell Cluster {data-orientation=rows}
@@ -704,7 +706,7 @@ Row
 version_info <- fromJSON(params$version_json)
 version_tbl <- tribble(
   ~term, ~value,
-  "Sample ID", version_info$sampleID,
+  "Sample ID", params$sampleName,
   "Pipeline Version", version_info$pipeline_version,
   "Reference Dir", version_info$referenceDir,
   "Reference GTF", version_info$referenceGTF,
