@@ -1,5 +1,5 @@
 process CHECK_SATURATION {
-    tag "${meta.id}"
+    tag { meta.feature_types ? "${meta.id}:${meta.feature_types}" : "${meta.id}" }
     label 'process_high'
     publishDir "${params.outdir}/${meta.id}/saturation/",
         mode: "${params.publish_dir_mode}",
@@ -10,9 +10,10 @@ process CHECK_SATURATION {
     path(whitelist)
 
     output:
-    tuple val(meta), path("${meta.id}.saturation_out.json"), emit: outJSON
+    tuple val(meta), path('*.saturation_out.json'), emit: outJSON
 
     script:
+    def prefix     = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"
     def multiMapper = params.soloMultiMappers == "Unique" ? "unique" : "multiple"
     def whitelist_files = whitelist.join(",")
     """
@@ -34,8 +35,18 @@ process CHECK_SATURATION {
     fi
     cellFile=\$(mktemp -p ./)
     zcat ${starsolo_filteredDir}/barcodes.tsv.gz > \$cellFile
-    get_sequencing_saturation.sh \$whitelist_combined \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} ${meta.id}.saturation_data.json ${meta.id}.UMI_hist.tsv ${meta.id}.gene_hist.tsv ${meta.id}.totalGeneCount.tsv
+    get_sequencing_saturation.sh \$whitelist_combined \$cellFile ${multiMapper} ${starsoloBAM} ${task.cpus} \\
+    ${prefix}.saturation_data.json \\
+    ${prefix}.UMI_hist.tsv \\
+    ${prefix}.gene_hist.tsv \\
+    ${prefix}.totalGeneCount.tsv
+
     rm \$cellFile
-    combine_saturation_data.R ${meta.id} ${meta.id}.saturation_data.json ${meta.id}.UMI_hist.tsv ${meta.id}.gene_hist.tsv ${meta.id}.totalGeneCount.tsv ${meta.id}.saturation_out.json
+    combine_saturation_data.R ${prefix} \\
+                              ${prefix}.saturation_data.json \\
+                              ${prefix}.UMI_hist.tsv \\
+                              ${prefix}.gene_hist.tsv \\
+                              ${prefix}.totalGeneCount.tsv \\
+                              ${prefix}.saturation_out.json
     """
 }

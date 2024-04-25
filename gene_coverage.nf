@@ -1,5 +1,5 @@
 process GENECOVERAGE {
-    tag "${meta.id}"
+    tag { meta.feature_types ? "${meta.id}:${meta.feature_types}" : "${meta.id}" }
     label 'process_medium'
 
     input:
@@ -26,7 +26,7 @@ process GENECOVERAGE {
 }
 
 process FEATURESTATS {
-    tag "${meta.id}"
+    tag { meta.feature_types ? "${meta.id}:${meta.feature_types}" : "${meta.id}" }
     label 'process_high'
 
     input:

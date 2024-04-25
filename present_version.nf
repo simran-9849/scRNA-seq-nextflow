@@ -1,19 +1,17 @@
 process GET_VERSIONS {
-    tag "${meta.id}"
+    tag "get_versions"
     label 'process_low'
-    publishDir "${params.outdir}/${meta.id}/final",
+    publishDir "${params.outdir}/pipeline_info",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
 
-    input:
-    tuple val(meta), path(saturation_outJSON) //fake input to ensure it running after saturation step
-
     output:
-    tuple val(meta), path("versions.json"), emit: versions
+    path("versions.json"), emit: json
 
     script:
     def includeIntron = params.soloFeatures == "Gene" ? "FALSE" : "TRUE"
     def includeMultiReads = params.soloMultiMappers == "Unique" ? "FALSE" : "TRUE"
+    //def cDNAreadOnly = params.trust4_cDNAread_only ? "TRUE" : "FALSE"
     """
     ## fastqc version
     fastqc_version=\$(fastqc --version | awk '{print \$2}')
@@ -25,11 +23,8 @@ process GET_VERSIONS {
     samtools_version=\$(samtools --version | head -1 |awk '{print \$2}')
     ## bedtools version
     bedtools_version=\$(bedtools --version | awk '{print \$2}')
-    ## qualimap version
-    qualimap_version=\$(qualimap -h | awk '\$1=="QualiMap"{print \$2}')
     cat<<-EOF > versions.json
 	{
-	  "sampleID": "${meta.id}",
 	  "pipeline_version": "$workflow.manifest.version",
 	  "referenceDir": "${params.genomeDir}",
 	  "referenceGTF": "${params.genomeGTF}",
@@ -41,8 +36,7 @@ process GET_VERSIONS {
 	  "includeIntron": "${includeIntron}",
 	  "includeMultiReads": "${includeMultiReads}",
 	  "samtools_version": "\$samtools_version",
-	  "bedtools_version": "\$bedtools_version",
-	  "qualimap_version": "\$qualimap_version"
+	  "bedtools_version": "\$bedtools_version"
 	}
 	EOF
     """

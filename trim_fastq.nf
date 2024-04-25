@@ -1,5 +1,5 @@
 process TRIM_FASTQ {
-    tag "$meta.id"
+    tag { meta.feature_types ? "${meta.id}:${meta.feature_types}" : "${meta.id}" }
     label 'process_low'
     publishDir "${params.outdir}/${meta.id}/cutqc",
         mode: params.publish_dir_mode,
@@ -22,7 +22,7 @@ process TRIM_FASTQ {
     tuple val(meta), path("${meta.id}.cutadapt.json"), emit: report_JSON
     
     script:
-    def prefix   = "${meta.id}"
+    def prefix   = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"
     """
     cutadapt -m $params.trimLength \\
              -j $task.cpus \\

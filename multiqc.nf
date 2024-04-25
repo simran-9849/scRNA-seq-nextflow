@@ -1,5 +1,5 @@
 process MULTIQC {
-    tag "${meta.id}"
+    tag { meta.feature_types ? "${meta.id}:${meta.feature_types}" : "${meta.id}" }
     label 'process_low'
     publishDir "${params.outdir}/${meta.id}/multiqc",
         mode: "${params.publish_dir_mode}",
@@ -24,7 +24,7 @@ process MULTIQC {
     tuple val(meta), path("${meta.id}_multiqc_report.html"), emit: report    
 
     script:
-    def prefix = "${meta.id}"
+    def prefix = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"
     def fastqcThreads = Math.min(4, task.cpus)
     """
     ## rename input files
