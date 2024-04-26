@@ -21,7 +21,7 @@ process MULTIQC {
           path(cutadapt_report)
 
     output:
-    tuple val(meta), path("${meta.id}_multiqc_report.html"), emit: report    
+    tuple val(meta), path("${meta.id}*_multiqc_report.html"), emit: report
 
     script:
     def prefix = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"

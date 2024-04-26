@@ -19,7 +19,7 @@ process TRIM_FASTQ {
     output:
     tuple val(meta), path("*_bc.trimmed.fq.gz"),   emit: bc_read
     tuple val(meta), path("*_cDNA.trimmed.fq.gz"), emit: cDNA_read
-    tuple val(meta), path("${meta.id}.cutadapt.json"), emit: report_JSON
+    tuple val(meta), path("${meta.id}*.cutadapt.json"), emit: report_JSON
     
     script:
     def prefix   = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"

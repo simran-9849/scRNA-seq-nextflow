@@ -6,8 +6,8 @@ process CAT_FASTQ {
     tuple val(meta), path(read1_list), path(read2_list)
 
     output:
-    tuple val(meta), path("${meta.id}_1.merged.fq.gz"), emit: read1
-    tuple val(meta), path("${meta.id}_2.merged.fq.gz"), emit: read2
+    tuple val(meta), path("${meta.id}*_1.merged.fq.gz"), emit: read1
+    tuple val(meta), path("${meta.id}*_2.merged.fq.gz"), emit: read2
 
     script:
     def prefix   = meta.feature_types ? "${meta.id}_${meta.feature_types}" : "${meta.id}"
