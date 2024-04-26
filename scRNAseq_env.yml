@@ -37,3 +37,4 @@ dependencies:
   - deeptools
   - subread
   - multiqc
+  - seqtk
