@@ -25,6 +25,15 @@ dependencies:
   - r-matrix==1.6_1.1
   - bedtools
   - bioconductor-limma
+  - bioconductor-biostrings
+  - bioconductor-complexheatmap
+  - r-data.table
+  - r-matrixstats
+  - r-reshape2
+  - r-seqinr
+  - r-stringi
+  - r-patchwork
+  - r-htmltools
   - gawk
   - pigz
   - gzip
