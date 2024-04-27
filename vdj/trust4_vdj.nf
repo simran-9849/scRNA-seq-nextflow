@@ -11,7 +11,7 @@ process VDJ_CELLCALLING_WITHOUTGEX {
     tuple val(meta), path(cDNAread),                                         emit: cDNAread
     tuple val(meta), path(bcRead),                                           emit: bcRead
     tuple val(meta), path("${meta.id}*.kneeOut.tsv"),                        emit: kneeOut
-    tuple val(meta), path("${meta.id}*.rawCellOut"),                         emit: cellOut
+    tuple val(meta), path("${meta.id}*.rawCellOut.tsv"),                     emit: cellOut
     tuple val(meta), path("${meta.id}*_readID.lst"),                         emit: readList
     tuple val(meta), path("${meta.id}*_barcode.fa"),                         emit: barcode
     tuple val(meta), path("${meta.id}*_umi.fa"),                             emit: umi
