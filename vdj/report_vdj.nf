@@ -28,7 +28,7 @@ process REPORT_VDJ {
     tuple val(meta), path("*report.html") ,                                         emit: report
     //tuple val(meta), path("*metrics.json"),                                       emit: metrics
     //tuple val(meta), path("*raw.h5seurat"),                                       emit: h5seurat
-    tuple val(meta), path("${starsolo_filteredDir}"),               optional: true, emit: gex_filteredDir
+    //tuple val(meta), path("${starsolo_filteredDir}"),               optional: true, emit: gex_filteredDir
     tuple val(meta), path("*_DEG.tsv"),                             optional: true, emit: DEGlist
     tuple val(meta), path("${meta.id}_GEX.Summary.unique.csv"),     optional: true, emit: GEX_Summary
     tuple val(meta), path("${meta.id}_*.metrics.tsv"),                              emit: metrics_tsv
@@ -42,12 +42,12 @@ process REPORT_VDJ {
     // Different input files names when including multi-gene reasds
     //def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
     //def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
-    def GEX_summaryFile = starsolo_summary ? starsolo_summary : ""
-    def featureStatsFile = featureStats ? featureStats : ""
-    def geneCoverageFile = geneCoverage ? geneCoverage : ""
-    def GEX_UMI_file = starsolo_UMI_file? starsolo_UMI_file: ""
-    def GEX_matrixDir = starsolo_filteredDir ? starsolo_filteredDir: ""
-    def GEX_saturation = saturation_outJSON ? saturation_outJSON: ""
+    def GEX_summaryFile = starsolo_summary ? starsolo_summary[0] : ""
+    def featureStatsFile = featureStats ? featureStats[0] : ""
+    def geneCoverageFile = geneCoverage ? geneCoverage[0] : ""
+    def GEX_UMI_file = starsolo_UMI_file? starsolo_UMI_file[0] : ""
+    def GEX_matrixDir = starsolo_filteredDir ? starsolo_filteredDir[0] : ""
+    def GEX_saturation = saturation_outJSON ? saturation_outJSON[0] : ""
 
     // VDJ_B inputs
     def VDJ_B_report   = vdj_report[0]
@@ -77,8 +77,8 @@ process REPORT_VDJ {
         params = list(
             sampleName = "${meta.id}",
             starsolo_out = "${GEX_summaryFile}",
-            featureStats = "${featureStats}",
-            geneCoverage = "${geneCoverage}",
+            featureStats = "${featureStatsFile}",
+            geneCoverage = "${geneCoverageFile}",
             starsolo_bc = "${GEX_UMI_file}",
             starsolo_matrixDir="${GEX_matrixDir}",
             nCPUs = "$task.cpus",
