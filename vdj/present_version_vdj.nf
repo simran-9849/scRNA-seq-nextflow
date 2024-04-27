@@ -3,7 +3,7 @@ process GET_VERSIONS_VDJ {
     label 'process_low'
     cache 'lenient'
     fair true
-    publishDir "${params.outdir}/report",
+    publishDir "${params.outdir}",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
 

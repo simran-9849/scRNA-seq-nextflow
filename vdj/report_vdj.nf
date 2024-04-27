@@ -3,49 +3,51 @@ process REPORT_VDJ {
     label 'process_medium'
     cache 'lenient'
     fair true
-    publishDir "${params.outdir}/report",
+    publishDir "${params.outdir}/${meta.id}/final",
         mode: "${params.publish_dir_mode}",
         enabled: params.outdir as boolean
 
     input:
     tuple val(meta),
-          path(starsolo_summary),
-          path(starsolo_UMI_file),
-          path(starsolo_filteredDir),
-          path(featureStats),
-          path(geneCoverage),
-          path(saturation_outJSON),
-          path(vdj_report),
-          path(vdj_airr),
-          path(vdj_kneeOut),
-          path(vdj_finalOut),
-          path(trust4_cells),
-          path(trust4_metrics),
-          path(trust4_cloneType)
+          val(starsolo_summary),
+          val(starsolo_UMI_file),
+          val(starsolo_filteredDir),
+          val(featureStats),
+          val(geneCoverage),
+          val(saturation_outJSON),
+          val(vdj_report),
+          val(vdj_airr),
+          val(vdj_kneeOut),
+          val(vdj_finalOut),
+          val(trust4_cells),
+          val(trust4_metrics),
+          val(trust4_cloneType)
     path(version_json)    
 
     output:
     tuple val(meta), path("*report.html") ,                                         emit: report
     //tuple val(meta), path("*metrics.json"),                                       emit: metrics
     //tuple val(meta), path("*raw.h5seurat"),                                       emit: h5seurat
-    tuple val(meta), path("*_DEG.tsv")    ,                         optional: true, emit: DEGlist
+    tuple val(meta), path("${starsolo_filteredDir}"),               optional: true, emit: gex_filteredDir
+    tuple val(meta), path("*_DEG.tsv"),                             optional: true, emit: DEGlist
     tuple val(meta), path("${meta.id}_GEX.Summary.unique.csv"),     optional: true, emit: GEX_Summary
     tuple val(meta), path("${meta.id}_*.metrics.tsv"),                              emit: metrics_tsv
     tuple val(meta), path("${meta.id}_*.metrics.json"),                             emit: metrics_json
     tuple val(meta), path("${meta.id}*_clonotypes.tsv"),                            emit: vdj_clonotype
     tuple val(meta), path("${meta.id}*_results.tsv"),                               emit: vdj_results
     tuple val(meta), path("${meta.id}*_results.productiveOnly_withLineage.tsv"),    emit: vdj_lineage
+    tuple val(meta), path("${version_json}"),                       optional: true, emit: versions
 
     script:
     // Different input files names when including multi-gene reasds
     //def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
     //def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
-    def GEX_summaryFile = "${starsolo_summary}"
-    def featureStatsFile = "${featureStats}"
-    def geneCoverageFile = "${geneCoverage}"
-    def GEX_UMI_file = "${starsolo_UMI_file}"
-    def GEX_matrixDir = "${starsolo_filteredDir}"
-    def GEX_saturation = "${saturation_outJSON}"
+    def GEX_summaryFile = starsolo_summary ? starsolo_summary : ""
+    def featureStatsFile = featureStats ? featureStats : ""
+    def geneCoverageFile = geneCoverage ? geneCoverage : ""
+    def GEX_UMI_file = starsolo_UMI_file? starsolo_UMI_file: ""
+    def GEX_matrixDir = starsolo_filteredDir ? starsolo_filteredDir: ""
+    def GEX_saturation = saturation_outJSON ? saturation_outJSON: ""
 
     // VDJ_B inputs
     def VDJ_B_report   = vdj_report[0]

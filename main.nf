@@ -433,9 +433,6 @@ workflow vdj_process {
     ch_trust4_metrics       = VDJ_METRICS.out.metricsJSON
     ch_trust4_cloneType     = VDJ_METRICS.out.cloneType
 
-    //ch_trust4_cloneType.view()
-    //ch_trust4_metrics.view()
-    //ch_trust4_cellOut.view()
 
     emit:
         starsolo_summary     = ch_starsolo_summary
@@ -517,14 +514,6 @@ workflow vdj_report {
     ch_vdj_kneeOut = collapse_vdj_ch(trust4_kneeOut)
     ch_vdj_finalOut = collapse_vdj_ch(trust4_finalOut)
 
-    //ch_vdj_metrics.view()
-    //ch_vdj_cloneType.view()
-    //ch_vdj_cellOut.view()
-    //ch_vdj_report.view()
-    //ch_vdj_airr.view()
-    //ch_vdj_kneeOut.view()
-    //ch_vdj_finalOut.view()
-
     ch_starsolo_summary_gex = select_gex_ch(starsolo_summary)
     ch_featureStats_gex = select_gex_ch(featureStats)
     ch_geneCoverage_gex = select_gex_ch(geneCoverage)
@@ -532,22 +521,27 @@ workflow vdj_report {
     ch_starsolo_filteredDir_gex = select_gex_ch(starsolo_filteredDir)
     ch_saturation_json_gex = select_gex_ch(saturation_json)
 
-    ch_starsolo_summary_gex
-        .join(ch_starsolo_umi_gex, by:[0])
-        .join(ch_starsolo_filteredDir_gex, by:[0])
-        .join(ch_featureStats_gex, by:[0])
-        .join(ch_geneCoverage_gex, by:[0])
-        .join(ch_saturation_json_gex, by:[0])
-        .join(ch_vdj_report, by:[0])
-        .join(ch_vdj_airr, by:[0])
-        .join(ch_vdj_kneeOut, by:[0])
-        .join(ch_vdj_finalOut, by:[0])
-        .join(ch_vdj_cellOut, by:[0])
-        .join(ch_vdj_metrics, by:[0])
-        .join(ch_vdj_cloneType, by:[0])
+    //ch_vdj_report contains all samples, including ones without GEX library
+    ch_vdj_report
+        .map{
+            meta, file ->
+            tuple(meta)
+        }
+        .join(ch_starsolo_summary_gex, remainder: true, by:[0])
+        .join(ch_starsolo_umi_gex, remainder: true, by:[0])
+        .join(ch_starsolo_filteredDir_gex, remainder: true, by:[0])
+        .join(ch_featureStats_gex, remainder: true, by:[0])
+        .join(ch_geneCoverage_gex, remainder: true, by:[0])
+        .join(ch_saturation_json_gex, remainder: true, by:[0])
+        .join(ch_vdj_report, remainder: true, by:[0])
+        .join(ch_vdj_airr, remainder: true, by:[0])
+        .join(ch_vdj_kneeOut, remainder: true, by:[0])
+        .join(ch_vdj_finalOut, remainder: true, by:[0])
+        .join(ch_vdj_cellOut, remainder: true, by:[0])
+        .join(ch_vdj_metrics, remainder: true, by:[0])
+        .join(ch_vdj_cloneType, remainder: true, by:[0])
         .set{ ch_report_input }
 
-    //ch_report_input.view()
     GET_VERSIONS_VDJ()
 
     REPORT_VDJ(
