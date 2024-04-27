@@ -1357,8 +1357,8 @@ d <- starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
     add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio))
 names(d) <- c("","")
 d %>% kbl() %>% kable_paper("hover", html_font = html_font)
@@ -1536,8 +1536,9 @@ starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
+    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
     mutate(sampleID=params$sampleName) %>% 
     pivot_wider(sampleID, names_from = item, values_from= value) %>% 
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
