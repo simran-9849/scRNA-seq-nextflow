@@ -13,8 +13,8 @@ output:
         google: Asap
 params:
   sampleName : "sampleName"
-  qualimap_out : "rnaseq_qc_results.txt"
-  qualimap_gene_coverage : "qualimap_gene_coverage.txt"
+  featureStats: "sampleID.featureCoverage_stats.json"
+  geneCoverage: "sampleID.scaled.tab"
   starsolo_matrixDir: "sample/Gene/filtered"
   starsolo_out : "Summary.csv"
   starsolo_bc : "UMIperCellSorted.txt"
@@ -69,7 +69,6 @@ library(plotly)
 library(kableExtra)
 library(Seurat)
 library(future)
-library(SeuratDisk)
 ##library(VennDiagram)
 library(Biostrings)
 library(data.table)
@@ -104,6 +103,8 @@ config_plotly_fig <- function(fig, ...){
     )
 }
 
+## Set kableExtra font here
+html_font <- "Asap, Arial, sans-serif"
 
 ## decide whether to incldue each page
 ## conditional page solution is from: https://stackoverflow.com/questions/59202693/how-can-i-create-a-conditional-flexdashboard-layout
@@ -1169,11 +1170,10 @@ starsolo_summary <- starsolo_summary %>%
     select(-value) %>%
     dplyr::rename("value" = "data") %>%
     mutate(item=str_replace_all(item, "GeneFull", "Gene"))
-exon_cmd <- paste0("grep 'exonic' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
-exon_ratio <- system(exon_cmd, intern = TRUE)
 
-intron_cmd <- paste0("grep 'intron' ", params$qualimap_out, " | awk '{print $NF}' | sed 's/(//; s/)//'")
-intron_ratio <- system(intron_cmd, intern = TRUE)
+exon_ratio <- fromJSON(params$featureStats)$exonRatio %>% as.numeric
+intron_ratio <- fromJSON(params$featureStats)$intronRatio %>% as.numeric
+intergenic_ratio <- fromJSON(params$featureStats)$intergenicRatio %>% as.numeric
 
 STARSolo <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
 seuratData <- CreateSeuratObject(counts=STARSolo,
@@ -1289,7 +1289,7 @@ d <- starsolo_summary %>%
                        "Total Gene Detected",
                        "Total GeneFull Detected"))
 names(d) <- c("","")                       
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
 ```
 
 ### Knee Plot `r infoIcon("kneePlot")`
@@ -1343,7 +1343,7 @@ d <- starsolo_summary %>%
                        "Total Gene Detected",
                        "Total GeneFull Detected"))
 names(d) <- c("","")
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
                                         
 ```
 
@@ -1358,9 +1358,10 @@ d <- starsolo_summary %>%
                        "Reads Mapped to Gene: Unique Gene",
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = exon_ratio) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio)
+    add_row(item = "Reads Mapped to Intronic Regions", value = intron_ratio) %>%
+    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio))
 names(d) <- c("","")
-d %>% kbl() %>% kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+d %>% kbl() %>% kable_paper("hover", html_font = html_font)
 ```
 
 Row
@@ -1469,10 +1470,12 @@ qcPlot
 ### Gene Coverage `r infoIcon("geneCoverage")`
 
 ```{r eval = include_gex}
-read_tsv(params$qualimap_gene_coverage) %>%
-    ggplot(aes(x=`#Transcript position`, y=`Transcript coverage profile`)) +
+dep <- read_tsv(params$geneCoverage, skip=3, col_names = NULL) %>% apply(2, sum, na.rm = TRUE)
+geneCoverage_df <- tibble(pos = 1:length(dep), dep = dep)
+ggplot(geneCoverage_df, aes(x=`pos`, y=`dep`)) +
     geom_line(size=1, color = "#551a8b", alpha=0.8) +
-    scale_y_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+    xlab("Transcript Relative Position")+ylab("Read Coverage")+
     theme_bw() + theme(panel.grid = element_blank())
 ```
 
@@ -1671,7 +1674,7 @@ vdj_t_stats <- vdj_t_tbl
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ### Knee Plot `r infoIcon("VDJ_kneePlot")`
@@ -1731,7 +1734,7 @@ vdj_t_sequencing_stats <- vdj_t_tbl
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ### V(D)J Annotation `r infoIcon("TCR_annotation")`
@@ -1788,7 +1791,7 @@ vdj_t_annotation <- vdj_t_tbl
 names(vdj_t_tbl) <- c("", "")
 vdj_t_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 Row
@@ -1961,7 +1964,7 @@ vdj_t_metrics_final %>%
 names(lineage_tbl) <- c("", "")
 lineage_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ### Lineage Plots `r infoIcon("Lineage_plot")`
@@ -2152,7 +2155,7 @@ vdj_b_stats <- vdj_b_tbl
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ### Knee Plot `r infoIcon("VDJ_kneePlot")`
@@ -2265,7 +2268,7 @@ vdj_b_annotation <- vdj_b_tbl
 names(vdj_b_tbl) <- c("", "")
 vdj_b_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 Row
@@ -2437,7 +2440,7 @@ vdj_b_metrics_final %>%
 names(lineage_tbl) <- c("", "")
 lineage_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ### Lineage Plots `r infoIcon("Lineage_plot")`
@@ -2539,7 +2542,7 @@ if(!include_gex){
 names(version_tbl) <- c("", "")
 version_tbl %>% 
     kbl() %>% 
-    kable_paper("hover", html_font = "arial, helvetica, sans-serif")
+    kable_paper("hover", html_font = html_font)
 ```
 
 ```{js}

@@ -8,7 +8,7 @@ process GET_VERSIONS_VDJ {
         enabled: params.outdir as boolean
 
     output:
-    path("versions.json"), emit: versions
+    path("versions.json"), emit: json
 
     script:
     def includeIntron = params.soloFeatures == "Gene" ? "FALSE" : "TRUE"
@@ -25,8 +25,8 @@ process GET_VERSIONS_VDJ {
     samtools_version=\$(samtools --version | head -1 |awk '{print \$2}')
     ## bedtools version
     bedtools_version=\$(bedtools --version | awk '{print \$2}')
-    ## qualimap version
-    qualimap_version=\$(qualimap -h | awk '\$1=="QualiMap"{print \$2}')
+    ## trust4 version
+    trust4_version=\$(run-trust4 2>&1 > /dev/null | head -1 | awk '{print \$2}')
     cat<<-EOF > versions.json
 	{
 	  "pipeline_version": "$workflow.manifest.version",
@@ -43,7 +43,7 @@ process GET_VERSIONS_VDJ {
 	  "includeMultiReads": "${includeMultiReads}",
 	  "samtools_version": "\$samtools_version",
 	  "bedtools_version": "\$bedtools_version",
-	  "qualimap_version": "\$qualimap_version"
+      "trust4_version": "\$trust4_version"
 	}
 	EOF
     """

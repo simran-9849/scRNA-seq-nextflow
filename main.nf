@@ -129,38 +129,12 @@ workflow scRNAseq {
     ch_starsolo_summary = STARSOLO.out.summary_unique
     ch_starsolo_UMI     = STARSOLO.out.UMI_file_unique
 
-    //if(params.soloMultiMappers != "Unique"){
-    //    STARSOLO_MULTIPLE(
-    //        STARSOLO.out.rawDir
-    //    )
-    //    CHECK_SATURATION(
-    //        ch_genome_bam,
-    //        STARSOLO_MULTIPLE.out.filteredDir,
-    //        ch_whitelist.toList()
-    //    )
-    //    STARSOLO_MULT_SUMMARY(
-    //        STARSOLO.out.cellReads_stats,
-    //        STARSOLO_MULTIPLE.out.filteredDir,
-    //        STARSOLO.out.summary_unique,
-    //        CHECK_SATURATION.out.outJSON
-    //    )
-    //    STARSOLO_MULT_UMI(
-    //        STARSOLO.out.cellReads_stats   
-    //    )
-    //    GET_VERSIONS(
-    //        CHECK_SATURATION.out.outJSON
-    //    )
-    //}else{
-
-        ch_saturation_input = ch_genome_bam.join(ch_filteredDir, by:[0])
-        CHECK_SATURATION(
-            ch_saturation_input,
-            ch_whitelist.toList()
-        )
-        GET_VERSIONS(
-            CHECK_SATURATION.out.outJSON
-        )
-    //}
+    ch_saturation_input = ch_genome_bam.join(ch_filteredDir, by:[0])
+    CHECK_SATURATION(
+        ch_saturation_input,
+        ch_whitelist.toList()
+    )
+    GET_VERSIONS()
 
     ch_featureStats   = Channel.empty()
     ch_geneCoverage   = Channel.empty()
@@ -179,30 +153,21 @@ workflow scRNAseq {
     ch_featureStats  = FEATURESTATS.out.stats
     ch_geneCoverage  = GENECOVERAGE.out.matrix
 
-    //if(params.soloMultiMappers != "Unique"){
-    //    REPORT(
-    //        STARSOLO_MULT_SUMMARY.out.summary_multiple,
-    //        STARSOLO_MULT_UMI.out.UMI_file_multiple,
-    //        STARSOLO_MULTIPLE.out.filteredDir,
-    //        ch_featureStats,
-    //        ch_geneCoverage,
-    //        CHECK_SATURATION.out.outJSON,
-    //        GET_VERSIONS.out.versions
-    //    )
-    //}else{
-        ch_starsolo_summary
-        .join(ch_starsolo_UMI, by:[0])
-        .join(ch_rawDir, by:[0])
-        .join(ch_filteredDir, by:[0])
-        .join(ch_featureStats, by:[0])
-        .join(ch_geneCoverage, by:[0])
-        .join(CHECK_SATURATION.out.outJSON, by:[0])
-        .join(GET_VERSIONS.out.versions, by:[0])
-        .set{ ch_report_input }
-        REPORT(
-            ch_report_input
-        )
-    //}
+
+    ch_starsolo_summary
+    .join(ch_starsolo_UMI, by:[0])
+    .join(ch_rawDir, by:[0])
+    .join(ch_filteredDir, by:[0])
+    .join(ch_featureStats, by:[0])
+    .join(ch_geneCoverage, by:[0])
+    .join(CHECK_SATURATION.out.outJSON, by:[0])
+    .set{ ch_report_input }
+
+    REPORT(
+        ch_report_input,
+        GET_VERSIONS.out.json
+    )
+
 }
 
 workflow mkref {
@@ -221,11 +186,7 @@ workflow mkref {
 
 // sub-workflow for vdj analysis
 
-include { CAT_TRIM_FASTQ_VDJ } from "./vdj/cat_trim_fastq_vdj"
-include { STARSOLO_VDJ; STARSOLO_MULTIPLE_VDJ; STARSOLO_MULT_SUMMARY_VDJ; STARSOLO_MULT_UMI_VDJ; } from "./vdj/starsolo_vdj"
-include { QUALIMAP_VDJ } from "./vdj/qualimap_vdj"
-include { CHECK_SATURATION_VDJ } from "./vdj/sequencing_saturation_vdj.nf"
-include { TRUST4_VDJ; VDJ_METRICS } from "./vdj/trust4_vdj"
+include { VDJ_CELLCALLING_WITHOUTGEX; VDJ_CELLCALLING_WITHGEX; VDJ_ASSEMBLY; VDJ_METRICS } from "./vdj/trust4_vdj"
 include { GET_VERSIONS_VDJ } from "./vdj/present_version_vdj"
 include { REPORT_VDJ } from "./vdj/report_vdj"
 
@@ -235,7 +196,8 @@ workflow vdj {
         vdj_process.out.starsolo_summary,
         vdj_process.out.starsolo_umi,
         vdj_process.out.starsolo_filteredDir,
-        vdj_process.out.qualimap_outDir,
+        vdj_process.out.featureStats,
+        vdj_process.out.geneCoverage,
         vdj_process.out.saturation_json,
         vdj_process.out.trust4_report,
         vdj_process.out.trust4_airr,
@@ -243,7 +205,9 @@ workflow vdj {
         vdj_process.out.trust4_barcode,
         vdj_process.out.trust4_finalOut,
         vdj_process.out.trust4_kneeOut,
-        vdj_process.out.trust4_cellOut
+        vdj_process.out.trust4_cellOut,
+        vdj_process.out.trust4_metrics,
+        vdj_process.out.trust4_cloneType
     )
 }
 
@@ -253,36 +217,46 @@ workflow vdj_process {
     if (!params.input) { exit 1, 'Input samplesheet not specified!' }
     if (!params.genomeDir) { exit 1, 'Genome index DIR not specified!' }
     if (!params.genomeGTF) { exit 1, 'Genome GTF not specified!' }
+    if (!params.trust4_vdj_refGenome_fasta) { exit 1, 'TRUST4 refGenome fasta not specified!' }
+    if (!params.trust4_vdj_imgt_fasta) { exit 1, 'TRUST4 imgt fasta not specified!' }
     
     // use different sampleList for vdj pipeline
     // one more column: feature_types
     Channel
-        .fromPath(params.input)
-        .splitCsv(header:true)
-        .map{ create_fastq_channel(it) }
-        .map {
-            meta, fastq ->
-                // meta.id = meta.id.split('_')[0..-2].join('_')
-                [ meta, fastq ] }
-        .groupTuple(by: [0])
-        .map {
-            meta, fastq ->
-                return [ meta, fastq.flatten() ]
-        }
-        .set { ch_fastq }
+    .fromPath(params.input)
+    .splitCsv(header:true)
+    .map{ create_fastq_channel(it) }
+    .groupTuple(by: [0])
+    .set { ch_fastq }
+
+    // MODULE: Concatenate FastQ files from the same sample if required
+    CAT_FASTQ( ch_fastq )
 
     // process vdj first
     ch_bc_read = Channel.empty()
     ch_cDNA_read = Channel.empty()
-    CAT_TRIM_FASTQ_VDJ( ch_fastq )
+
     if ( params.bc_read == "fastq_1" ){
-        ch_bc_read = CAT_TRIM_FASTQ_VDJ.out.read1
-        ch_cDNA_read = CAT_TRIM_FASTQ_VDJ.out.read2
+        ch_bc_read = CAT_FASTQ.out.read1
+        ch_cDNA_read = CAT_FASTQ.out.read2
     }else{
-        ch_bc_read = CAT_TRIM_FASTQ_VDJ.out.read2
-        ch_cDNA_read = CAT_TRIM_FASTQ_VDJ.out.read1
+        ch_bc_read = CAT_FASTQ.out.read2
+        ch_cDNA_read = CAT_FASTQ.out.read1
     }
 
+    ch_merged_fastq = ch_bc_read.join(ch_cDNA_read, by:[0])
+
+    TRIM_FASTQ( ch_merged_fastq )
+
+    CAT_FASTQ.out.read1
+    .join(CAT_FASTQ.out.read2, by:[0])
+    .join(TRIM_FASTQ.out.bc_read, by:[0])
+    .join(TRIM_FASTQ.out.cDNA_read, by:[0])
+    .join(TRIM_FASTQ.out.report_JSON, by:[0])
+    .set { ch_multiqc_input }
+
+    MULTIQC( ch_multiqc_input )
+    
     ch_genomeDir = file(params.genomeDir)
     ch_genomeGTF = file(params.genomeGTF)
     ch_vdj_refGenome_fasta = file(params.trust4_vdj_refGenome_fasta)
@@ -294,128 +268,182 @@ workflow vdj_process {
     ch_starsolo_summary           = Channel.empty()
     ch_starsolo_umi               = Channel.empty()
     ch_starsolo_filteredDir       = Channel.empty()
-    ch_qualimap_outDir            = Channel.empty()
+    ch_starsolo_rawDir            = Channel.empty()
     ch_saturation_json            = Channel.empty()
     // force using parameters for 5'-RNAseq
     //params.soloStrand = "Reverse"
 
     ch_whitelist = Channel.fromPath(params.whitelist.split(" ").toList())
+    // concatenate reads as single input channel
+    // after concatenation, the first one is bc read, the second is cDNA read
+    ch_starsolo_inputReads = TRIM_FASTQ.out.bc_read.join(TRIM_FASTQ.out.cDNA_read, by:[0])
 
-    STARSOLO_VDJ(
-        ch_cDNA_read,
-        ch_bc_read,
+    STARSOLO(
+        ch_starsolo_inputReads,
         ch_genomeDir,
         ch_genomeGTF,
-        ch_whitelist.toList(),
-    )
-    ch_genome_bam           = STARSOLO_VDJ.out.bam_sorted
-    ch_genome_bam_index     = STARSOLO_VDJ.out.bai
-    ch_starsolo_filteredDir = STARSOLO_VDJ.out.filteredDir
-    ch_starsolo_summary     = STARSOLO_VDJ.out.summary_unique
-    ch_starsolo_umi         = STARSOLO_VDJ.out.UMI_file_unique
-
-    
-    //if(params.soloMultiMappers != "Unique"){
-    //    STARSOLO_MULTIPLE_VDJ(
-    //        STARSOLO_VDJ.out.rawDir
-    //    )
-    //    CHECK_SATURATION_VDJ(
-    //        ch_genome_bam,
-    //        STARSOLO_MULTIPLE_VDJ.out.filteredDir,
-    //        ch_whitelist
-    //    )
-    //    STARSOLO_MULT_SUMMARY_VDJ(
-    //        STARSOLO_VDJ.out.cellReads_stats,
-    //        STARSOLO_MULTIPLE_VDJ.out.filteredDir,
-    //        STARSOLO_VDJ.out.summary_unique,
-    //        CHECK_SATURATION_VDJ.out.outJSON
-    //    )
-    //    STARSOLO_MULT_UMI_VDJ(
-    //        STARSOLO_VDJ.out.cellReads_stats   
-    //    )
-    //    //GET_VERSIONS(
-    //    //    CHECK_SATURATION_VDJ.out.outJSON
-    //    //)
-    //}else{
-    //    CHECK_SATURATION_VDJ(
-    //        STARSOLO_VDJ.out.bam,
-    //        STARSOLO_VDJ.out.filteredDir,
-    //        ch_whitelist
-    //    )
-    //    //GET_VERSIONS(
-    //    //    CHECK_SATURATION_VDJ.out.outJSON
-    //    //)
-    //}
-
-    CHECK_SATURATION_VDJ(
-        ch_genome_bam,
-        ch_starsolo_filteredDir,
         ch_whitelist.toList()
     )
-    ch_saturation_json = CHECK_SATURATION_VDJ.out.outJSON
+    ch_genome_bam           = STARSOLO.out.bam
+    ch_genome_bam_index     = STARSOLO.out.bai
+    ch_starsolo_filteredDir = STARSOLO.out.filteredDir
+    ch_starsolo_rawDir      = STARSOLO.out.rawDir
+    ch_starsolo_summary     = STARSOLO.out.summary_unique
+    ch_starsolo_umi         = STARSOLO.out.UMI_file_unique
+    
+    ch_genome_bam
+    .join(ch_starsolo_filteredDir, by:[0])
+    .filter{ it[0].feature_types == "GEX" }
+    .set{ ch_saturation_input }
 
-    QUALIMAP_VDJ(
-        ch_genome_bam,
+    CHECK_SATURATION(
+        ch_saturation_input,
+        ch_whitelist.toList()
+    )
+    ch_saturation_json = CHECK_SATURATION.out.outJSON
+
+    
+    ch_featureStats   = Channel.empty()
+    ch_geneCoverage   = Channel.empty()
+
+    ch_genome_bam
+        .join(ch_genome_bam_index, by:[0])
+        .filter{ it[0].feature_types == "GEX" }
+        .set{ ch_geneCoverage_input }
+
+    FEATURESTATS(
+        ch_geneCoverage_input,
         ch_genomeGTF
     )
-    ch_qualimap_outDir = QUALIMAP_VDJ.out.results
+    
+    GENECOVERAGE(
+        ch_geneCoverage_input,
+        ch_genomeGTF
+    )
 
+    ch_featureStats  = FEATURESTATS.out.stats
+    ch_geneCoverage  = GENECOVERAGE.out.matrix
+    
     // aggregate BAM files to check if GEX library exists
-    ch_genome_bam
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ ch_bam_grouped }
+    TRIM_FASTQ.out.cDNA_read
+    .join(TRIM_FASTQ.out.bc_read, by:[0])
+    .join(ch_genome_bam, by:[0])
+    .set{ ch_cellCalling_input }
 
-    ch_bc_read
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    // 
+    ch_cellCalling_input
+    .map{
+        meta, cDNAread, bcRead, bam ->
+        tuple(meta.id, meta.expected_cells, meta.feature_types)
     }
-    .groupTuple(by:[0])
-    .set{ ch_bcRead_grouped }
+    .groupTuple(by: [0])
+    .filter{ !it[2].contains("GEX") }
+    .transpose()
+    .filter{ it[2] != "GEX" }
+    .map{ id, expected_cells, feature_types -> tuple([id: id, expected_cells: expected_cells, feature_types: feature_types])}
+    .join(ch_cellCalling_input, by:[0])
+    .set{ ch_cellCalling_withoutGEX }
 
-    ch_cDNA_read
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
+    ch_cellCalling_input
+    .map{
+        meta, cDNAread, bcRead, bam ->
+        tuple(meta.id, meta.expected_cells, meta.feature_types)
     }
-    .groupTuple(by:[0])
-    .set{ ch_cDNAread_grouped }
+    .groupTuple(by: [0])
+    .filter{ it[2].contains("GEX") }
+    .transpose()
+    .filter{ it[2] != "GEX" }
+    .map{ id, expected_cells, feature_types -> tuple([id: id, expected_cells: expected_cells, feature_types: feature_types])}
+    .join(ch_cellCalling_input, by:[0])
+    .set{ ch_cellCalling_withGEX_noFilteredDir }
 
     ch_starsolo_filteredDir
-    .map {
-        meta, file ->
-        [ [id:meta.id], meta.feature_types, meta.expected_cells, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ ch_filteredDir_grouped }
+    .filter{ it[0].feature_types == "GEX" }
+    .map{ meta, filteredDir -> tuple(meta.id, filteredDir)}
+    .set{ ch_cellCalling_withGEX_barcodes }
 
-    TRUST4_VDJ(
-        ch_cDNAread_grouped,
-        ch_bcRead_grouped,
-        ch_bam_grouped,
-        ch_filteredDir_grouped,
+    ch_cellCalling_withGEX_noFilteredDir
+    .map{
+        meta, cDNAread, bcRead, bam ->
+        tuple(meta.id, meta.expected_cells, meta.feature_types, cDNAread, bcRead, bam)
+    }
+    .combine(ch_cellCalling_withGEX_barcodes, by:[0])
+    .map{
+        id, expected_cells, feature_types, cDNAread, bcRead, bam, filteredDir ->
+        tuple([id: id, expected_cells: expected_cells, feature_types: feature_types], cDNAread, bcRead, bam, filteredDir)
+    }
+    .set{ ch_cellCalling_withGEX }
+    
+    VDJ_CELLCALLING_WITHOUTGEX(
+        ch_cellCalling_withoutGEX
+    )
+
+    VDJ_CELLCALLING_WITHGEX(
+        ch_cellCalling_withGEX
+    )
+
+    ch_trust4_cDNAread = VDJ_CELLCALLING_WITHOUTGEX.out.cDNAread
+        .concat(VDJ_CELLCALLING_WITHGEX.out.cDNAread)
+    ch_trust4_bcRead = VDJ_CELLCALLING_WITHOUTGEX.out.bcRead
+        .concat(VDJ_CELLCALLING_WITHGEX.out.bcRead)
+    ch_trust4_kneeOut = VDJ_CELLCALLING_WITHOUTGEX.out.kneeOut
+        .concat(VDJ_CELLCALLING_WITHGEX.out.kneeOut)
+    ch_trust4_raw_cellOut = VDJ_CELLCALLING_WITHOUTGEX.out.cellOut
+        .concat(VDJ_CELLCALLING_WITHGEX.out.cellOut)
+    ch_trust4_readList = VDJ_CELLCALLING_WITHOUTGEX.out.readList
+        .concat(VDJ_CELLCALLING_WITHGEX.out.readList)
+    ch_trust4_barcode = VDJ_CELLCALLING_WITHOUTGEX.out.barcode
+        .concat(VDJ_CELLCALLING_WITHGEX.out.barcode)
+    ch_trust4_umi = VDJ_CELLCALLING_WITHOUTGEX.out.umi
+        .concat(VDJ_CELLCALLING_WITHGEX.out.umi)
+
+    ch_trust4_cDNAread
+    .join(ch_trust4_bcRead, by:[0])
+    .join(ch_trust4_readList, by:[0])
+    .join(ch_trust4_barcode, by:[0])
+    .join(ch_trust4_umi, by:[0])
+    .join(ch_trust4_kneeOut, by:[0])
+    .join(ch_trust4_raw_cellOut, by:[0])
+    .set{ ch_vdj_assembly_input }
+
+    VDJ_ASSEMBLY(
+        ch_vdj_assembly_input,
         ch_vdj_refGenome_fasta,
         ch_vdj_imgt_fasta
     )
 
-    ch_trust4_report        = TRUST4_VDJ.out.report
-    ch_trust4_airr          = TRUST4_VDJ.out.airr
-    ch_trust4_readsAssign   = TRUST4_VDJ.out.readsAssign
-    ch_trust4_barcode       = TRUST4_VDJ.out.barcode
-    ch_trust4_finalOut      = TRUST4_VDJ.out.finalOut
-    ch_trust4_kneeOut       = TRUST4_VDJ.out.kneeOut
-    ch_trust4_cellOut       = TRUST4_VDJ.out.cellOut
+    ch_trust4_report        = VDJ_ASSEMBLY.out.report
+    ch_trust4_airr          = VDJ_ASSEMBLY.out.airr
+    ch_trust4_readsAssign   = VDJ_ASSEMBLY.out.readsAssign
+    ch_trust4_finalOut      = VDJ_ASSEMBLY.out.finalOut
+
+    ch_trust4_report
+    .join(ch_trust4_airr, by:[0])
+    .join(ch_trust4_readsAssign, by:[0])
+    .join(ch_trust4_barcode, by:[0])
+    .join(ch_trust4_kneeOut, by:[0])
+    .join(ch_starsolo_summary.filter{ it[0].feature_types != "GEX" }, by:[0])
+    .set{ ch_vdj_metrics_input }
+
+    VDJ_METRICS(
+        ch_vdj_metrics_input
+    )
+
+    ch_trust4_cellOut       = VDJ_METRICS.out.cellOut
+    ch_trust4_metrics       = VDJ_METRICS.out.metricsJSON
+    ch_trust4_cloneType     = VDJ_METRICS.out.cloneType
+
+    //ch_trust4_cloneType.view()
+    //ch_trust4_metrics.view()
+    //ch_trust4_cellOut.view()
 
     emit:
         starsolo_summary     = ch_starsolo_summary
         starsolo_bam         = ch_genome_bam
         starsolo_umi         = ch_starsolo_umi
         starsolo_filteredDir = ch_starsolo_filteredDir
-        qualimap_outDir      = ch_qualimap_outDir
+        featureStats         = ch_featureStats
+        geneCoverage         = ch_geneCoverage
         saturation_json      = ch_saturation_json
         trust4_report        = ch_trust4_report
         trust4_airr          = ch_trust4_airr
@@ -424,14 +452,50 @@ workflow vdj_process {
         trust4_finalOut      = ch_trust4_finalOut
         trust4_kneeOut       = ch_trust4_kneeOut
         trust4_cellOut       = ch_trust4_cellOut
+        trust4_metrics       = ch_trust4_metrics
+        trust4_cloneType     = ch_trust4_cloneType
 }
+
+def collapse_vdj_ch ( ch_input ) {
+    //ch_input.view()
+    ch_expanded = ch_input
+        .map{
+            meta, file ->
+            tuple(meta.id, meta.feature_types, file)
+        }
+        .groupTuple(by:[0], sort:true)
+        .map{
+            id, feature_types, file ->
+            // feature_types: ["VDJ-B", "VDJ-T"]
+            // file: [BCR_file, TCR_file]
+            def bcr_file = file.any{ it.getName() =~ /VDJ-B/ } ? file.find{ it.getName() =~/VDJ-B/ } : ""
+            def tcr_file = file.any{ it.getName() =~ /VDJ-T/ }? file.find{ it.getName() =~ /VDJ-T/ } : ""
+            tuple([id: id], [bcr_file, tcr_file])
+        }
+
+    return ch_expanded
+}
+
+def select_gex_ch ( ch_input ) {
+    ch_selected = ch_input
+        .map {
+            meta, file ->
+            if( meta.feature_types == "GEX" )
+                tuple([id: meta.id], file)
+        }
+        .groupTuple(by:[0])
+
+    return ch_selected
+}
+
 
 workflow vdj_report {
     take:
     starsolo_summary
     starsolo_umi
     starsolo_filteredDir
-    qualimap_outDir
+    featureStats
+    geneCoverage
     saturation_json
     trust4_report
     trust4_airr
@@ -440,281 +504,54 @@ workflow vdj_report {
     trust4_finalOut
     trust4_kneeOut
     trust4_cellOut
+    trust4_metrics
+    trust4_cloneType
 
     main:
 
-    starsolo_summary
-    .map {
-        meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ starsolo_summary_collapsed }
+    ch_vdj_metrics = collapse_vdj_ch(trust4_metrics)
+    ch_vdj_cloneType = collapse_vdj_ch(trust4_cloneType)
+    ch_vdj_cellOut = collapse_vdj_ch(trust4_cellOut)
+    ch_vdj_report = collapse_vdj_ch(trust4_report)
+    ch_vdj_airr = collapse_vdj_ch(trust4_airr)
+    ch_vdj_kneeOut = collapse_vdj_ch(trust4_kneeOut)
+    ch_vdj_finalOut = collapse_vdj_ch(trust4_finalOut)
 
-    starsolo_umi
-    .map {
-        meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ starsolo_umi_collapsed }
+    //ch_vdj_metrics.view()
+    //ch_vdj_cloneType.view()
+    //ch_vdj_cellOut.view()
+    //ch_vdj_report.view()
+    //ch_vdj_airr.view()
+    //ch_vdj_kneeOut.view()
+    //ch_vdj_finalOut.view()
 
-    starsolo_filteredDir
-    .map {
-        meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ starsolo_filteredDir_collapsed }
+    ch_starsolo_summary_gex = select_gex_ch(starsolo_summary)
+    ch_featureStats_gex = select_gex_ch(featureStats)
+    ch_geneCoverage_gex = select_gex_ch(geneCoverage)
+    ch_starsolo_umi_gex = select_gex_ch(starsolo_umi)
+    ch_starsolo_filteredDir_gex = select_gex_ch(starsolo_filteredDir)
+    ch_saturation_json_gex = select_gex_ch(saturation_json)
 
-    trust4_report
-    .map {
-         meta, file ->
-            def tmp = []
-            def feature = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_report }
+    ch_starsolo_summary_gex
+        .join(ch_starsolo_umi_gex, by:[0])
+        .join(ch_starsolo_filteredDir_gex, by:[0])
+        .join(ch_featureStats_gex, by:[0])
+        .join(ch_geneCoverage_gex, by:[0])
+        .join(ch_saturation_json_gex, by:[0])
+        .join(ch_vdj_report, by:[0])
+        .join(ch_vdj_airr, by:[0])
+        .join(ch_vdj_kneeOut, by:[0])
+        .join(ch_vdj_finalOut, by:[0])
+        .join(ch_vdj_cellOut, by:[0])
+        .join(ch_vdj_metrics, by:[0])
+        .join(ch_vdj_cloneType, by:[0])
+        .set{ ch_report_input }
 
-    trust4_airr
-    .map {
-         meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_airr }
-
-    trust4_readsAssign
-    .map {
-         meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_readsAssign }
-
-    trust4_barcode
-    .map {
-         meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_barcode }
-
-    trust4_finalOut
-    .map {
-         meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_finalOut }
-
-    trust4_kneeOut
-    .map {
-         meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ vdj_kneeOut }
-
-    VDJ_METRICS(
-        vdj_report,
-        vdj_airr,
-        vdj_readsAssign,
-        vdj_barcode,
-        vdj_kneeOut,
-        starsolo_summary_collapsed
-    )
-    
-    qualimap_outDir
-    .map {
-        meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ qualimap_outDir_collapsed }
-
-     saturation_json
-    .map {
-        meta, file ->
-            //if( meta.feature_types == "GEX" )
-                [ [id:meta.id], meta.feature_types, file ]
-    }
-    .groupTuple(by:[0])
-    .set{ saturation_json_collapsed }
-
-    VDJ_METRICS.out.cellOut
-    .map {
-        meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set { trust4_cells_collapsed }
-    //VDJ_METRICS.out.metricsJSON.view()
-    
-    VDJ_METRICS.out.metricsJSON
-    .map {
-        meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set { trust4_metrics_collapsed }
-    //trust4_metrics_collapsed.view()
-
-    //VDJ_METRICS.out.cloneType.view()
-    VDJ_METRICS.out.cloneType
-    .map {
-        meta, file ->
-            def tmp = []
-            if(file instanceof List){
-                tmp = file
-            }else{
-                tmp = [ file ]
-            }
-            tmp.findAll { it =~ /VDJ-[BT]/ }
-            .collect {
-                if(it =~ /VDJ-T/){
-                    ["VDJ-T", it]
-                }else if(it =~ /VDJ-B/){
-                    ["VDJ-B", it]
-                }
-            }
-            .transpose()
-            .plus(0, [id:meta.id])
-    }
-    .set{ trust4_cloneType_collapsed }
-    //trust4_cloneType_collapsed.view()
-    
+    //ch_report_input.view()
     GET_VERSIONS_VDJ()
 
     REPORT_VDJ(
-        starsolo_summary_collapsed,
-        starsolo_umi_collapsed,
-        starsolo_filteredDir_collapsed,
-        qualimap_outDir_collapsed,
-        saturation_json_collapsed,
-        vdj_report,
-        vdj_airr,
-        vdj_kneeOut,
-        vdj_finalOut,
-        trust4_cells_collapsed,
-        trust4_metrics_collapsed,
-        trust4_cloneType_collapsed,
-        GET_VERSIONS_VDJ.out.versions
+        ch_report_input,
+        GET_VERSIONS_VDJ.out.json
     )
 }

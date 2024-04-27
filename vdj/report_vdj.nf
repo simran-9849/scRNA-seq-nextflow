@@ -8,18 +8,20 @@ process REPORT_VDJ {
         enabled: params.outdir as boolean
 
     input:
-    tuple val(meta), val(starsolo_summary_featureTypes),     path(starsolo_summary)
-    tuple val(meta), val(starsolo_UMI_file_featureTypes),    path(starsolo_UMI_file)
-    tuple val(meta), val(starsolo_filteredDir_featureTypes), path(starsolo_filteredDir)
-    tuple val(meta), val(qualimap_outdir_featureTypes),      path(qualimap_outdir)
-    tuple val(meta), val(saturation_outJSON_featureTypes),   path(saturation_outJSON)
-    tuple val(meta), val(vdj_report_featureTypes),           path(vdj_report)
-    tuple val(meta), val(vdj_airr_featureTypes),             path(vdj_airr)
-    tuple val(meta), val(vdj_kneeOut_featureTypes),          path(vdj_kneeOut)
-    tuple val(meta), val(vdj_finalOut_featureTypes),         path(vdj_finalOut)
-    tuple val(meta), val(trust4_cells_featureTypes),         path(trust4_cells)
-    tuple val(meta), val(trust4_metrics_featureTypes),       path(trust4_metrics)
-    tuple val(meta), val(trust4_cloneType_featureTypes),     path(trust4_cloneType)
+    tuple val(meta),
+          path(starsolo_summary),
+          path(starsolo_UMI_file),
+          path(starsolo_filteredDir),
+          path(featureStats),
+          path(geneCoverage),
+          path(saturation_outJSON),
+          path(vdj_report),
+          path(vdj_airr),
+          path(vdj_kneeOut),
+          path(vdj_finalOut),
+          path(trust4_cells),
+          path(trust4_metrics),
+          path(trust4_cloneType)
     path(version_json)    
 
     output:
@@ -35,68 +37,33 @@ process REPORT_VDJ {
     tuple val(meta), path("${meta.id}*_results.productiveOnly_withLineage.tsv"),    emit: vdj_lineage
 
     script:
-    // https://stackoverflow.com/questions/49114850/create-a-map-in-groovy-having-two-collections-with-keys-and-values
-    def associate_feature_type = { feature_types, data_list ->
-        def map = [:]
-        dList = []
-        if(feature_types.size() == 1 && data_list.getClass() == nextflow.processor.TaskPath){
-            dList = [data_list]
-        }else{
-            dList = data_list
-        }
-        map = [feature_types, dList].transpose().collectEntries()
-        //if(feature_types.size() > 1){
-        //map = [feature_types, data_list].transpose().collectEntries()
-        //}else if(feature_types.size() == 1){
-        //    map = [feature_types, [data_list]].transpose().collectEntries()
-        //}//else{
-            // return empty, them program will stop and throw the warnning
-            //def map = [:]
-        //}
-        return map
-    }
-
-    def starsolo_summary_map = associate_feature_type(starsolo_summary_featureTypes, starsolo_summary)
-    def starsolo_UMI_file_map = associate_feature_type(starsolo_UMI_file_featureTypes, starsolo_UMI_file)
-    def starsolo_filteredDir_map = associate_feature_type(starsolo_filteredDir_featureTypes, starsolo_filteredDir)
-    def qualimap_outdir_map = associate_feature_type(qualimap_outdir_featureTypes, qualimap_outdir)
-    def saturation_outJSON_map = associate_feature_type(saturation_outJSON_featureTypes, saturation_outJSON)
-    def vdj_report_map   = associate_feature_type(vdj_report_featureTypes, vdj_report)
-    def vdj_airr_map     = associate_feature_type(vdj_airr_featureTypes, vdj_airr)
-    def vdj_kneeOut_map  = associate_feature_type(vdj_kneeOut_featureTypes, vdj_kneeOut)
-    def vdj_finalOut_map = associate_feature_type(vdj_finalOut_featureTypes, vdj_finalOut)
-    def trust4_cells_map = associate_feature_type(trust4_cells_featureTypes, trust4_cells)
-    def trust4_metrics_map = associate_feature_type(trust4_metrics_featureTypes, trust4_metrics)
-    def trust4_cloneType_map = associate_feature_type(trust4_cloneType_featureTypes, trust4_cloneType)
-
     // Different input files names when including multi-gene reasds
     //def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
     //def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
-    def GEX_summaryFile = starsolo_summary_map["GEX"] ?  starsolo_summary_map["GEX"] : ""
-    //def GEX_qualimapDir = qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] : ""
-    def qualimapInput =  qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] + "/rnaseq_qc_results.txt" : ""
-    def qualimapGeneCoverage = qualimap_outdir_map["GEX"] ? qualimap_outdir_map["GEX"] + "/raw_data_qualimapReport/coverage_profile_along_genes_(total).txt" : ""
-    def GEX_UMI_file = starsolo_UMI_file_map["GEX"] ? starsolo_UMI_file_map["GEX"] : ""
-    def GEX_matrixDir = starsolo_filteredDir_map["GEX"] ? starsolo_filteredDir_map["GEX"] : ""
-    def GEX_saturation = saturation_outJSON_map["GEX"] ? saturation_outJSON_map["GEX"] : ""
+    def GEX_summaryFile = "${starsolo_summary}"
+    def featureStatsFile = "${featureStats}"
+    def geneCoverageFile = "${geneCoverage}"
+    def GEX_UMI_file = "${starsolo_UMI_file}"
+    def GEX_matrixDir = "${starsolo_filteredDir}"
+    def GEX_saturation = "${saturation_outJSON}"
 
     // VDJ_B inputs
-    def VDJ_B_report   = vdj_report_map["VDJ-B"] ? vdj_report_map["VDJ-B"] : ""
-    def VDJ_B_airr     = vdj_airr_map["VDJ-B"] ? vdj_airr_map["VDJ-B"] : ""
-    def VDJ_B_kneeOut  = vdj_kneeOut_map["VDJ-B"] ? vdj_kneeOut_map["VDJ-B"] : ""
-    def VDJ_B_finalOut = vdj_finalOut_map["VDJ-B"] ? vdj_finalOut_map["VDJ-B"] : ""
-    def VDJ_B_cells    = trust4_cells_map["VDJ-B"] ? trust4_cells_map["VDJ-B"] : ""
-    def VDJ_B_trust4_metrics = trust4_metrics_map["VDJ-B"] ? trust4_metrics_map["VDJ-B"] : ""
-    def VDJ_B_cloneType = trust4_cloneType_map["VDJ-B"] ? trust4_cloneType_map["VDJ-B"] : ""
+    def VDJ_B_report   = vdj_report[0]
+    def VDJ_B_airr     = vdj_airr[0]
+    def VDJ_B_kneeOut  = vdj_kneeOut[0]
+    def VDJ_B_finalOut = vdj_finalOut[0]
+    def VDJ_B_cells    = trust4_cells[0]
+    def VDJ_B_trust4_metrics = trust4_metrics[0]
+    def VDJ_B_cloneType = trust4_cloneType[0]
 
     // VDJ_T inputs
-    def VDJ_T_report   = vdj_report_map["VDJ-T"] ? vdj_report_map["VDJ-T"] : ""
-    def VDJ_T_airr     = vdj_airr_map["VDJ-T"] ? vdj_airr_map["VDJ-T"] : ""
-    def VDJ_T_kneeOut  = vdj_kneeOut_map["VDJ-T"] ? vdj_kneeOut_map["VDJ-T"] : ""
-    def VDJ_T_finalOut = vdj_finalOut_map["VDJ-T"] ? vdj_finalOut_map["VDJ-T"] : ""
-    def VDJ_T_cells    = trust4_cells_map["VDJ-T"] ? trust4_cells_map["VDJ-T"] : ""
-    def VDJ_T_trust4_metrics = trust4_metrics_map["VDJ-T"] ? trust4_metrics_map["VDJ-T"] : ""
-    def VDJ_T_cloneType = trust4_cloneType_map["VDJ-T"] ? trust4_cloneType_map["VDJ-T"] : ""
+    def VDJ_T_report   = vdj_report[1]
+    def VDJ_T_airr     = vdj_airr[1]
+    def VDJ_T_kneeOut  = vdj_kneeOut[1]
+    def VDJ_T_finalOut = vdj_finalOut[1]
+    def VDJ_T_cells    = trust4_cells[1]
+    def VDJ_T_trust4_metrics = trust4_metrics[1]
+    def VDJ_T_cloneType = trust4_cloneType[1]
 
     // Using UMI or Reads
     def withUMI = params.soloType == "CB_samTagOut" ? "FALSE" : "TRUE"
@@ -108,8 +75,8 @@ process REPORT_VDJ {
         params = list(
             sampleName = "${meta.id}",
             starsolo_out = "${GEX_summaryFile}",
-            qualimap_out = "${qualimapInput}",
-            qualimap_gene_coverage = "${qualimapGeneCoverage}",
+            featureStats = "${featureStats}",
+            geneCoverage = "${geneCoverage}",
             starsolo_bc = "${GEX_UMI_file}",
             starsolo_matrixDir="${GEX_matrixDir}",
             nCPUs = "$task.cpus",
