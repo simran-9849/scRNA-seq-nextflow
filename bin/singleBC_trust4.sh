@@ -292,3 +292,5 @@ cat $workDir/*/singleBC_final.out >> $finalOut
 ##    singleBC_trust4 $i
 ##done
 rm $bc_tsv
+## Remove trust4 temp workDir
+rm $workDir
