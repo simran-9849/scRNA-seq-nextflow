@@ -75,6 +75,8 @@ process STARSOLO {
     // common starsolo options
     scriptString.push(
     """
+    ## Set ulimit to avoid number of opening files reaching to limit
+    ulimit -n 40960
     ## Added "--outBAMsortingBinsN 300" option to solve sorting RAM issue when BAM is too large
     ## Refer to: https://github.com/alexdobin/STAR/issues/870
     STAR --runThreadN $task.cpus \\
