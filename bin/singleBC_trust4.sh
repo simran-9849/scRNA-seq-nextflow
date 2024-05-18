@@ -146,6 +146,7 @@ split_bc(){
     mkdir -p "$wd/barcode"
     mkdir -p "$wd/readsList"
     mkdir -p "$wd/umi"
+    mkdir -p "$wd/readsFastq"
 
     ## combine barcode, umi, readID
     local bc_umi_reads=$(mktemp -p ./)
@@ -158,65 +159,83 @@ split_bc(){
         sort -k 2,2 -k 3,3 --parallel $threads $bc_umi_reads |
             awk -v wd="$wd" '
             {
-                bc_out=wd"/barcode/"$2".single_bc.fa";
-                umi_out=wd"/umi/"$2".single_umi.fa";
-                reads_out=wd"/readsList/"$2".single_reads.lst";
+                bc_out=wd"/barcode/"$2".sc_bc.fa";
+                umi_out=wd"/umi/"$2".sc_umi.fa";
+                reads_out=wd"/readsList/"$2".sc_reads.lst";
                 print ">"$1"\n"$2 > bc_out;
                 print ">"$1"\n"$3 > umi_out;
                 print $1 > reads_out;
             }
             '
-        rm $bc_umi_reads
     else
-        fasta_formatter -t -i $barcodeFa |
+        fasta_formatter -t -i $barcodeFa | awk '{print $1"\t"$2"\t-"}' > $bc_umi_reads
+        sort -k 2,2 -k 3,3 --parallel $threads $bc_umi_reads |
             awk -v wd="$wd" '
             {
-                bc_out=wd"/barcode/"$2".single_bc.fa";
-                reads_out=wd"/readsList/"$2".single_reads.lst";
+                bc_out=wd"/barcode/"$2".sc_bc.fa";
+                reads_out=wd"/readsList/"$2".sc_reads.lst";
                 print ">"$1"\n"$2 > bc_out;
                 print $1 > reads_out;
             }
             '
         fasta_formatter -t -i $barcodeFa | cut -f 2 | sort -u --parallel $threads |
-            parallel -j $threads touch $wd/umi/{}".single_umi.fa"
+            parallel -j $threads touch $wd/umi/{}".sc_umi.fa"
     fi
+    ## prepare reads
+    tmpR1_tsv=$(mktemp -p ./ R1.XXXXXX.tsv)
+    tmpR1_sorted=$(mktemp -p ./ R1.XXXXXX.sorted.tsv)
+    tmpR2_tsv=$(mktemp -p ./ R2.XXXXXX.tsv)
+    tmpR2_sorted=$(mktemp -p ./ R2.XXXXXX.sorted.tsv)
+    tmpbc_sorted=$(mktemp -p ./ bc.XXXXXX.sorted.tsv)
+    sort -k 1,1 --parallel $threads $bc_umi_reads > $tmpbc_sorted
+    rm $bc_umi_reads
+
+    zcat $inputR1 | paste - - - - | awk '{print substr($1, 2)"\t"$0}' > $tmpR1_tsv
+    sort -k 1,1 --parallel $threads $tmpR1_tsv > $tmpR1_sorted
+    rm $tmpR1_tsv
+    join -j 1 -t $'\t' $tmpbc_sorted $tmpR1_sorted |
+        awk -F"\t" -v wd="$wd" '
+        {
+            reads_out=wd"/readsFastq/"$2".sc_reads.R1.fq"
+            print $4"\n"$5"\n"$6"\n"$7 > reads_out
+        }
+        '
+
+    zcat $inputR2 | paste - - - - | awk '{print substr($1, 2)"\t"$0}' > $tmpR2_tsv
+    sort -k 1,1 --parallel $threads $tmpR2_tsv > $tmpR2_sorted
+    rm $tmpR2_tsv
+    join -j 1 -t $'\t' $tmpbc_sorted $tmpR2_sorted |
+        awk -F"\t" -v wd="$wd" '
+        {
+            reads_out=wd"/readsFastq/"$2".sc_reads.R2.fq"
+            print $4"\n"$5"\n"$6"\n"$7 > reads_out
+        }
+        '
+    ## remove temp files
+    rm $tmpR1_sorted
+    rm $tmpR2_sorted
+    rm $tmpbc_sorted
 }
 
 singleBC_trust4(){
     ## function cannot access global variable when parsing to GNU parallel
     local bc=$1
-    local readsList=$2
-    local barcodeFa=$3
-    local umiFa=$4
-    local trust4_wd=$5
+    local trust4_wd=$2
 
-    mkdir -p $trust4_wd
-    ## extract read list
-    ##readID=$(mktemp -p ./ readID.XXXXXX)
-    ##fasta_formatter -t -i $inputBC | awk -v bc="$bc" '$2==bc{print $1}' > $readID
-    ##singleBC=$(mktemp -p ./ BC.XXXXXX.fa)
-    ##fasta_formatter -t -i $inputBC | awk -v bc="$bc" '$2==bc{print ">"$1"\n"$NF}' > $singleBC
-    local umiCounts=$(grep -c ">" $umiFa)
+
+    local umiCounts=$(grep -c ">" ${trust4_wd}/umi/${bc}.sc_umi.fa)
     if [[ $umiCounts -eq 0 ]]
     then
-        local barcode_umi_opt="--barcode $barcodeFa"
+        local barcode_umi_opt="--barcode ${trust4_wd}/barcode/${bc}.sc_bc.fa"
     else
-        ##singleUMI=$(mktemp -p ./ UMI.XXXXXX.fa)
-        ##fasta_formatter -t -i $inputUMI | awk 'ARGIND==1{a[$1]}ARGIND==2{if($1 in a){print ">"$1"\n"$NF}}' $readID -  > $singleUMI
-        local barcode_umi_opt="--barcode $barcodeFa --UMI $umiFa"
+        local barcode_umi_opt="--barcode ${trust4_wd}/barcode/${bc}.sc_bc.fa --UMI ${trust4_wd}/umi/${bc}.sc_umi.fa"
     fi
 
     if [[ $R2_Only == true ]]
     then
-        local tmpR2=$(mktemp -p "$trust4_wd" R2.XXXXXX.fq)
-        seqtk subseq $inputR2 $readsList > $tmpR2
-        local trust4_input_opt="-u $tmpR2"
+        local trust4_input_opt="-u ${trust4_wd}/readsFastq/${bc}.sc_reads.R2.fq"
     else
-        local tmpR1=$(mktemp -p "$trust4_wd" R1.XXXXXX.fq)
-        local tmpR2=$(mktemp -p "$trust4_wd" R2.XXXXXX.fq)
-        seqtk subseq $inputR1 $readsList > $tmpR1
-        seqtk subseq $inputR2 $readsList > $tmpR2
-        local trust4_input_opt="-1 $tmpR1 -2 $tmpR2"
+        local trust4_input_opt="-1 ${trust4_wd}/readsFastq/${bc}.sc_reads.R1.fq -2 ${trust4_wd}/readsFastq/${bc}.sc_reads.R2.fq"
     fi
     local trust4_out=$(mktemp -d -p "$trust4_wd" "${bc}.XXXXXX")
     ## separate trust4 steps, since fastq-extractor will perform filtration
@@ -229,7 +248,6 @@ singleBC_trust4(){
                     $barcode_umi_opt
     ## check reads number
     local readsNum=$(grep -c ">" $trust4_out/singleBC_toassemble_bc.fa)
-    echo $readsNum
     if [[ $readsNum -gt 0 ]]
     then
         run-trust4 -f $genomeRef \
@@ -248,15 +266,9 @@ singleBC_trust4(){
         ##cat $trust4_out/singleBC_assign.out >> $readsAssign
         ##cat $trust4_out/singleBC_annot.fa >> $annotFa
         ##cat $trust4_out/singleBC_final.out >> $finalOut
-    fi
-
-    if [[ $R2_Only == true ]]
-    then
-        rm $tmpR2
     else
-        rm $tmpR1 $tmpR2
+        echo "No reads extracted for $bc"
     fi
-    ##rm -rf $trust4_out
 }
 
 
@@ -278,7 +290,7 @@ export readFormat
 ##export finalOut
 
 cat $bc_tsv |
-    parallel -j $threads singleBC_trust4 {} $workDir/readsList/{}.single_reads.lst $workDir/barcode/{}.single_bc.fa $workDir/umi/{}.single_umi.fa $workDir
+    parallel -j $threads singleBC_trust4 {} $workDir
 
 awk 'FNR>1{print}' $workDir/*/singleBC_barcode_report.tsv >> $reportOut
 awk 'FNR>1{print}' $workDir/*/singleBC_barcode_airr.tsv >> $airrOut
@@ -293,4 +305,4 @@ cat $workDir/*/singleBC_final.out >> $finalOut
 ##done
 rm $bc_tsv
 ## Remove trust4 temp workDir
-rm $workDir
+rm -rf $workDir

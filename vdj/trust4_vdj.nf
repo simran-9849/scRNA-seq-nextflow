@@ -122,6 +122,22 @@ process VDJ_ASSEMBLY {
     seqtk subseq ${bcRead} ${readList} | pigz -p 6 > trust4_${prefix}_input.R1.fq.gz
     seqtk subseq ${cDNAread} ${readList} | pigz -p 6 > trust4_${prefix}_input.R2.fq.gz
 
+    ## extraction will fail if readsID tails with "/1" or "/2"
+    extracted_reads=\$(zcat trust4_${prefix}_input.R1.fq.gz | wc -l)
+    if [[ \$extracted_reads -eq 0 ]]
+    then
+        zcat ${bcRead} |
+            awk 'NR%4==1{sub("/1", "", \$1); print \$1; getline; print; getline; print; getline; print}' |
+            seqtk subseq - ${readList} | pigz -p 6 > trust4_${prefix}_input.R1.fq.gz
+    fi
+    extracted_reads=\$(zcat trust4_${prefix}_input.R2.fq.gz | wc -l)
+    if [[ \$extracted_reads -eq 0 ]]
+    then
+        zcat ${cDNAread} |
+            awk 'NR%4==1{sub("/2", "", \$1); print \$1; getline; print; getline; print; getline; print}' |
+            seqtk subseq - ${readList} | pigz -p 6 > trust4_${prefix}_input.R2.fq.gz
+    fi
+
     use_cDNAread_only=${use_cDNAread_only}
     use_UMI=${use_UMI}
     if [[ \$use_UMI == true ]]
