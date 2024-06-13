@@ -159,9 +159,9 @@ expl_tbl <- tribble(
     "Sequencing Saturation",
     "The saturation was calculated as 1-nUMI/nReads, which could be used to measure how many reads it will take to sequence a new transcript (UMI). nUMI is the number of UMI, nReads is the number of reads with valid barcode/UMI/Gene. This value represents the complexity of the library. For instance, if the saturation is 75%, then we could only get one new UMI when sequence four more reads.",
     "Q30 Bases in CB+UMI",
-    "Percentage of the nucleotides in cell barcode and UMI sequence with the sequencing quality larger than 30 (99% accuracy)",
+    "Percentage of the nucleotides in cell barcode and UMI sequence with the sequencing quality larger than 30 (99.9% accuracy)",
     "Q30 Bases in RNA read",
-    "Percentage of the nucleotides in cDNA reads with sequencing quality larger than 30 (99% accuracy)"
+    "Percentage of the nucleotides in cDNA reads with sequencing quality larger than 30 (99.9% accuracy)"
 )
 createModal("sequencingStats", expl_tbl)
 
