@@ -41,7 +41,7 @@ library(Seurat)
 library(future)
 
 set.seed(1234)
-plan(multisession, workers = min(as.numeric(params$nCPUs),4))
+plan("multicore", workers = min(as.numeric(params$nCPUs),4))
 options(future.globals.maxSize = as.numeric(params$nMem), sass.cache = FALSE)
 RhpcBLASctl::blas_set_num_threads(1) # https://github.com/satijalab/seurat/issues/3991
 
@@ -303,10 +303,11 @@ intergenic_ratio <- fromJSON(params$featureStats)$intergenicRatio %>% as.numeric
 ```
 
 ```{r process_starsolo, include = FALSE}
-STARSolo <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
-seuratData <- CreateSeuratObject(counts=STARSolo,
+counts <- Read10X(data.dir=file.path(params$starsolo_matrixDir))
+seuratData <- CreateSeuratObject(counts=counts,
                              min.cells=0,
                              min.features=0, project=params$sampleName)
+rm(counts)
 seuratData[['run']]=params$sampleName
 seuratData[["percent.mt"]]=PercentageFeatureSet(object=seuratData, pattern = "MT-|mt-")
 
@@ -331,13 +332,9 @@ if(filtered_cells>0){
 ## Only perform clustering when more than 150 cells detected
 if(filtered_cells >= 150){
     ## Normalization and scaling
-    ##seuratData <- NormalizeData(object=seuratData)
-    ##seuratData <- FindVariableFeatures(seuratData)
-    ##seuratData <- ScaleData(seuratData, vars.to.regress=c("nCount_RNA", "percent.mt"), features=rownames(seuratData))
-    
-    ## replace above commands with sctransform
-    ## default use top 3000 variable features
-    seuratData <- SCTransform(seuratData, vars.to.regress = "percent.mt", conserve.memory = TRUE)
+    seuratData <- NormalizeData(object=seuratData)
+    seuratData <- FindVariableFeatures(seuratData)
+    seuratData <- ScaleData(seuratData)
     
     seuratData <- RunPCA(object=seuratData, npcs=100)
     
@@ -350,9 +347,38 @@ if(filtered_cells >= 150){
     seuratData <- FindClusters(object=seuratData, resolution=resolution)
     seuratData <- RunUMAP(object=seuratData, reduction="pca", dims=1:pca_dim)
     
-    ##Idents(object=seuratData) <- paste("RNA_snn_res.", resolution, sep="")
-    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
+    markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+    
+    ## Extract dimension reduction data for plot
+    umap_data <- Embeddings(object = seuratData[["umap"]])[colnames(seuratData), c(1, 2)]
+    clusterData <- merge(umap_data, seuratData@meta.data, by=0) %>% 
+        dplyr::rename("bc" = `Row.names`)
+    cellCount <- clusterData %>% group_by(seurat_clusters) %>% summarise(cellCount = n())
+    totalCell <- cellCount %>% pull(cellCount) %>% sum()
+    clusterData <- clusterData %>% left_join(cellCount, by = "seurat_clusters") %>%
+        mutate(totalCell=totalCell,
+               text = paste0(cellCount, "/", totalCell))
+               
+    cluster_fig <- plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters, 
+        text = ~text,
+        type = 'scatter', mode = 'markers',
+        colors = 'Dark2',
+        hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
+        config_plotly_fig() %>%
+        toWebGL()
+    
+    ## Generate UMI depth UMAP
+    clusterData <- clusterData %>%
+        mutate(log10_UMI = log10(nCount_RNA))
+    
+    umiDepth_fig <- plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCount_RNA,
+        type = 'scatter', mode = 'markers',
+        hovertemplate = 'UMI: %{text}<extra></extra>') %>%
+    config_plotly_fig() %>%
+    toWebGL()
+
 }
+rm(seuratData)
 ```
 
 ```{css echo = FALSE}
@@ -520,29 +546,7 @@ Row
 ```{r}
 ## Only plot cluster when there are more than 150 filtered cells
 if(filtered_cells >= 150){
-    ##clusterPlot <- DimPlot(object=seuratData, reduction="umap", label=TRUE, repel=TRUE)
-    ## extract data from seuratData
-    umap_data <- Embeddings(object = seuratData[["umap"]])[colnames(seuratData), c(1, 2)]
-    clusterData <- merge(umap_data, seuratData@meta.data, by=0) %>% 
-        dplyr::rename("bc" = `Row.names`)
-    cellCount <- clusterData %>% group_by(seurat_clusters) %>% summarise(cellCount = n())
-    totalCell <- cellCount %>% pull(cellCount) %>% sum()
-    clusterData <- clusterData %>% left_join(cellCount, by = "seurat_clusters") %>%
-        mutate(totalCell=totalCell,
-               text = paste0(cellCount, "/", totalCell))
-    
-    plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~seurat_clusters, 
-            text = ~text,
-            type = 'scatter', mode = 'markers',
-            colors = 'Dark2',
-            hovertemplate = 'cells: %{text}<extra><b>Cluster: %{fullData.name}</b></extra>') %>%
-        config_plotly_fig() %>%
-        toWebGL()
-    
-    ##clusterPlot %>% ggplotly() %>%
-    ##    config(displaylogo = FALSE,
-    ##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-    ##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+    cluster_fig
 }else{
     cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
 }
@@ -553,20 +557,7 @@ if(filtered_cells >= 150){
 
 ```{r}
 if(filtered_cells >= 150){
-clusterData <- clusterData %>%
-    mutate(log10_UMI = log10(nCount_RNA))
-    
-plot_ly(clusterData, x = ~UMAP_1, y= ~UMAP_2, color = ~log10_UMI,  text = ~nCount_RNA,
-        type = 'scatter', mode = 'markers',
-        hovertemplate = 'UMI: %{text}<extra></extra>') %>%
-    config_plotly_fig() %>%
-    toWebGL()
-
-##depthPlot <- FeaturePlot(object = seuratData, features = 'log_nCount_RNA') + scale_color_continuous(name="log10 Read Counts", type = "viridis", direction = 1) + labs(title = NULL)
-##depthPlot %>% ggplotly() %>%
-##    config(displaylogo = FALSE, 
-##           modeBarButtonsToRemove = c('zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 'autoScale',
-##                                      'hoverClosestCartesian', 'hoverCompareCartesian')) %>% toWebGL()
+    umiDepth_fig
 }else{
     cat("Too few cells: ", filtered_cells, "(filtered by nFeature >= 200)\n")
 }
@@ -579,7 +570,7 @@ Row {style="margin-right: 8px"}
 
 ```{r}
 if(filtered_cells >= 150){
-    markerGenes <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+    
     if("cluster" %in% colnames(markerGenes)){
         markerGenes %>%
             group_by(cluster) %>%

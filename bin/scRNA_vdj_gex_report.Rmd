@@ -81,7 +81,7 @@ library(patchwork)
 library(htmltools)
 
 set.seed(1234)
-plan(multisession, workers = as.numeric(params$nCPUs))
+plan("multicore", workers = as.numeric(params$nCPUs))
 options(future.globals.maxSize = as.numeric(params$nMem), sass.cache = FALSE)
 RhpcBLASctl::blas_set_num_threads(1) # https://github.com/satijalab/seurat/issues/3991
 
@@ -1203,13 +1203,9 @@ if(filtered_cells>0){
 ## Only perform clustering when more than 150 cells detected
 if(filtered_cells >= 150){
     ## Normalization and scaling
-    ##seuratData <- NormalizeData(object=seuratData)
-    ##seuratData <- FindVariableFeatures(seuratData)
-    ##seuratData <- ScaleData(seuratData, vars.to.regress=c("nCount_RNA", "percent.mt"), features=rownames(seuratData))
-    
-    ## replace above commands with sctransform
-    ## default use top 3000 variable features
-    seuratData <- SCTransform(seuratData, vars.to.regress = "percent.mt", conserve.memory = TRUE)
+    seuratData <- NormalizeData(object=seuratData)
+    seuratData <- FindVariableFeatures(seuratData)
+    seuratData <- ScaleData(seuratData)
     
     seuratData <- RunPCA(object=seuratData, npcs=100)
     
