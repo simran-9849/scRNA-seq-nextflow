@@ -465,8 +465,12 @@ def collapse_vdj_ch ( ch_input ) {
             id, feature_types, file ->
             // feature_types: ["VDJ-B", "VDJ-T"]
             // file: [BCR_file, TCR_file]
-            def bcr_file = file.any{ it.getName() =~ /VDJ-B/ } ? file.find{ it.getName() =~/VDJ-B/ } : ""
-            def tcr_file = file.any{ it.getName() =~ /VDJ-T/ }? file.find{ it.getName() =~ /VDJ-T/ } : ""
+            def bcrIndex = feature_types.indexOf("VDJ-B")
+            def bcr_file = bcrIndex > -1 ? file[bcrIndex] : ""
+
+            def tcrIndex = feature_types.indexOf("VDJ-T")
+            def tcr_file = tcrIndex > -1 ? file[tcrIndex] : ""
+
             tuple([id: id], [bcr_file, tcr_file])
         }
 
@@ -475,12 +479,18 @@ def collapse_vdj_ch ( ch_input ) {
 
 def select_gex_ch ( ch_input ) {
     ch_selected = ch_input
-        .map {
+        .map{
             meta, file ->
-            if( meta.feature_types == "GEX" )
-                tuple([id: meta.id], file)
+            tuple(meta.id, meta.feature_types, file)
         }
-        .groupTuple(by:[0])
+        .groupTuple(by:[0], sort:true)
+        .map{
+            // featureTypes and files are lists
+            id, feature_types, file ->
+            def gexIndex = feature_types.indexOf("GEX")
+            def gex_file = gexIndex > -1 ? file[gexIndex] : ""
+            tuple([id: id], gex_file)
+        }
 
     return ch_selected
 }
@@ -545,7 +555,7 @@ workflow vdj_report {
     GET_VERSIONS_VDJ()
 
     REPORT_VDJ(
-        ch_report_input,
-        GET_VERSIONS_VDJ.out.json
+       ch_report_input,
+       GET_VERSIONS_VDJ.out.json
     )
 }
