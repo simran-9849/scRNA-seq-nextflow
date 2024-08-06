@@ -42,12 +42,12 @@ process REPORT_VDJ {
     // Different input files names when including multi-gene reasds
     //def summaryFile = params.soloMultiMappers == "Unique" ? "Summary.csv" : "Summary.multiple.csv"
     //def matrixDir = params.soloMultiMappers == "Unique" ? "filtered" : "filtered_mult"
-    def GEX_summaryFile = starsolo_summary ? starsolo_summary[0] : ""
-    def featureStatsFile = featureStats ? featureStats[0] : ""
-    def geneCoverageFile = geneCoverage ? geneCoverage[0] : ""
-    def GEX_UMI_file = starsolo_UMI_file? starsolo_UMI_file[0] : ""
-    def GEX_matrixDir = starsolo_filteredDir ? starsolo_filteredDir[0] : ""
-    def GEX_saturation = saturation_outJSON ? saturation_outJSON[0] : ""
+    def GEX_summaryFile = starsolo_summary
+    def featureStatsFile = featureStats
+    def geneCoverageFile = geneCoverage
+    def GEX_UMI_file = starsolo_UMI_file
+    def GEX_matrixDir = starsolo_filteredDir
+    def GEX_saturation = saturation_outJSON
 
     // VDJ_B inputs
     def VDJ_B_report   = vdj_report[0]

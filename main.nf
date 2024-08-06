@@ -460,7 +460,7 @@ def collapse_vdj_ch ( ch_input ) {
             meta, file ->
             tuple(meta.id, meta.feature_types, file)
         }
-        .groupTuple(by:[0], sort:true)
+        .groupTuple(by:[0])
         .map{
             id, feature_types, file ->
             // feature_types: ["VDJ-B", "VDJ-T"]
@@ -483,7 +483,7 @@ def select_gex_ch ( ch_input ) {
             meta, file ->
             tuple(meta.id, meta.feature_types, file)
         }
-        .groupTuple(by:[0], sort:true)
+        .groupTuple(by:[0])
         .map{
             // featureTypes and files are lists
             id, feature_types, file ->
