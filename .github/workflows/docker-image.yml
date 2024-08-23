@@ -2,11 +2,6 @@ name: build docker image CI
 
 on:
   push:
-    branches:
-      - "main"
-    paths:
-      - "scRNAseq_env.yml"
-      - "Dockerfile"
     tags:
       - "v*"
 
