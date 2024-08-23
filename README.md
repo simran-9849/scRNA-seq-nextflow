@@ -4,8 +4,9 @@ This pipeline uses **starsolo** (https://github.com/alexdobin/STAR/blob/master/d
 and **Seurat** package (https://satijalab.org/seurat/) as the core modules to process scRNA-seq
 data and generate a concise html report. The workflow was implemented by [**nextflow**](https://www.nextflow.io/).
 
-## Compatible Data Type
+Please visit our documentation website for more details: https://starscope.netlify.app
 
+## Compatible Data Type
 
 - 10X Genomics Chromium (https://www.10xgenomics.com/resources/datasets)
 - ThunderBio scRNA-seq data
@@ -143,20 +144,3 @@ directory `work` could be safely removed by `rm -rf work`.
 
 - **work**: intermediate directory, could be safely removed after running complete
 
-## Update Notes
-
-### v0.0.6
-
-- Now the BAM output will not by published
-
-- Added support for counting intron reads
-
-- Fixed STAR to 2.7.9a and samtools to 1.15
-
-### v0.0.5
-
-- Fixed issue that no report generated if too few cells detected
-
-### v0.0.3 
-
-- default starsolo parameters were changed to adapt thunderbio scRNA-seq library instead 10x datasets
