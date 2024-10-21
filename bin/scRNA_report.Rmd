@@ -174,7 +174,7 @@ expl_tbl <- tribble(
     "Reads Mapped to Gene: Unique+Multiple Gene",
     '<blockquote>Multi-gene reads are concordant with (i.e. align equally well to) transcripts of two or more genes. One class of multi-gene read are those that map uniquely to a genomic region where two or more genes overlap. Another class are those reads that map to multiple loci in the genome, with each locus annotated to a different gene.</blockquote> STARsolo will output "NoMulti" if multi-genes reads are not counted',
     "Reads Mapped to Gene: Unique Gene",
-    'Fraction of the reads mapped to a unique gene region, this parameter will mostly equivalent to "Reads Mapped Confidently to Transcriptome" in cellranger report',
+    'Fraction of the reads mapped to a unique gene region, this parameter will be mostly equivalent to "Reads Mapped Confidently to Transcriptome" in cellranger report',
     "Reads Mapped to Exonic Regions",
     "Fraction of the reads mapped to exonic region",
     "Reads Mapped to Intronic Regions",
@@ -649,42 +649,6 @@ plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
     toWebGL()
 ```
 
-```{r include=FALSE}
-starsolo_summary %>% 
-    filter(item %in% c("Estimated Number of Cells",
-                       "Unique Reads in Cells Mapped to Gene",
-                       "Unique Reads in Cells Mapped to GeneFull",
-                       "Fraction of Unique Reads in Cells",
-                       "Mean Reads per Cell",
-                       "Median Reads per Cell",
-                       "UMIs in Cells",
-                       "Mean UMI per Cell",
-                       "Median UMI per Cell",
-                       "Mean Gene per Cell",
-                       "Mean GeneFull per Cell",
-                       "Median Gene per Cell",
-                       "Median GeneFull per Cell",
-                       "Total Gene Detected",
-                       "Total GeneFull Detected",
-                       "Number of Reads",
-                       "Reads With Valid Barcodes",
-                       "Sequencing Saturation",
-                       "Q30 Bases in CB+UMI",
-                       "Q30 Bases in RNA read",
-                       "Reads Mapped to Genome: Unique+Multiple",
-                       "Reads Mapped to Genome: Unique",
-                       "Reads Mapped to Gene: Unique+Multiple Gene",
-                       "Reads Mapped to GeneFull: Unique+Multiple GeneFull",
-                       "Reads Mapped to Gene: Unique Gene",
-                       "Reads Mapped to GeneFull: Unique GeneFull")) %>%
-    add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
-    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
-    mutate(sampleID=params$sampleName) %>% 
-    pivot_wider(sampleID, names_from = item, values_from= value) %>% 
-    write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
-```
-
 Running Info {data-orientation=rows}
 ====================
 
@@ -731,8 +695,8 @@ $( document ).ready(function() {
 ```
 
 ```{r include = FALSE}
-## save all summary outputs to a tsv file
-starsolo_summary %>% 
+## save all summary outputs to tsv and json file
+d <- starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
                        "Unique Reads in Cells Mapped to GeneFull",
@@ -762,6 +726,14 @@ starsolo_summary %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
     add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
-    add_row(item = "SampleID", value = params$sampleName, .before = 1) %>%
-    write_tsv(paste0(params$sampleName, ".metrics.tsv"))
+    add_row(item = "SampleID", value = params$sampleName, .before = 1)
+
+d <- d %>% 
+    mutate(item = str_replace(item, "Mean Reads per Cell", "Mean Reads per Cell (STARsolo style)"))
+idx <- which(d$item == "Mean Reads per Cell (STARsolo style)")
+d <- d %>%
+    add_row(item = "Mean Reads per Cell (cellRanger style)", value = readsMean, .before = idx)
+write_tsv(d, paste0(params$sampleName, ".metrics.tsv"))
+d %>% pivot_wider(names_from=item, values_from=value) %>%
+  write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
 ```

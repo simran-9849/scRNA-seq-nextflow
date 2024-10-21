@@ -31,8 +31,8 @@ process REPORT_VDJ {
     //tuple val(meta), path("${starsolo_filteredDir}"),               optional: true, emit: gex_filteredDir
     tuple val(meta), path("*_DEG.tsv"),                             optional: true, emit: DEGlist
     tuple val(meta), path("${meta.id}_GEX.Summary.unique.csv"),     optional: true, emit: GEX_Summary
-    tuple val(meta), path("${meta.id}_*.metrics.tsv"),                              emit: metrics_tsv
-    tuple val(meta), path("${meta.id}_*.metrics.json"),                             emit: metrics_json
+    tuple val(meta), path("${meta.id}*.metrics.tsv"),                              emit: metrics_tsv
+    tuple val(meta), path("${meta.id}*.metrics.json"),                             emit: metrics_json
     tuple val(meta), path("${meta.id}*_clonotypes.tsv"),                            emit: vdj_clonotype
     tuple val(meta), path("${meta.id}*_results.tsv"),                               emit: vdj_results
     tuple val(meta), path("${meta.id}*_results.productiveOnly_withLineage.tsv"),    emit: vdj_lineage

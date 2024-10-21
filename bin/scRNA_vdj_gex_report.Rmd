@@ -1245,9 +1245,12 @@ valueBox(cellNum, icon = "fa-circle-notch", color = "info")
 ### Mean Reads per Cell
 
 ```{r eval = include_gex}
-readsMean <- starsolo_summary %>% 
-    filter(item == "Mean Reads per Cell") %>% 
+totalReads <- starsolo_summary %>% 
+    filter(item == "Number of Reads") %>% 
     pull(value)
+readsMean <- (as.numeric(str_remove_all(totalReads, ",")) / as.numeric(str_remove_all(cellNum, ","))) %>% 
+    round() %>%
+    label_comma()()
 valueBox(readsMean, icon = "fa-chart-bar", color = "primary")
 ```
 
@@ -1284,6 +1287,13 @@ d <- starsolo_summary %>%
                        "Median GeneFull per Cell",
                        "Total Gene Detected",
                        "Total GeneFull Detected"))
+
+d <- d %>% 
+    mutate(item = str_replace(item, "Mean Reads per Cell", "Mean Reads per Cell (STARsolo style)"))
+idx <- which(d$item == "Mean Reads per Cell (STARsolo style)")
+d <- d %>%
+    add_row(item = "Mean Reads per Cell (cellRanger style)", value = readsMean, .before = idx)
+
 names(d) <- c("","")                       
 d %>% kbl() %>% kable_paper("hover", html_font = html_font)
 ```
@@ -1505,7 +1515,7 @@ plot_ly(saturation_data, x = ~meanReadPerCell, y= ~medianGenePerCell,
 ```
 
 ```{r include=FALSE, eval = include_gex}
-starsolo_summary %>% 
+d <- starsolo_summary %>% 
     filter(item %in% c("Estimated Number of Cells",
                        "Unique Reads in Cells Mapped to Gene",
                        "Unique Reads in Cells Mapped to GeneFull",
@@ -1534,9 +1544,16 @@ starsolo_summary %>%
                        "Reads Mapped to GeneFull: Unique GeneFull")) %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
-    add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
-    mutate(sampleID=params$sampleName) %>% 
-    pivot_wider(sampleID, names_from = item, values_from= value) %>% 
+    add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
+    add_row(item = "SampleID", value = params$sampleName, .before = 1)
+
+d <- d %>% 
+    mutate(item = str_replace(item, "Mean Reads per Cell", "Mean Reads per Cell (STARsolo style)"))
+idx <- which(d$item == "Mean Reads per Cell (STARsolo style)")
+d <- d %>%
+  add_row(item = "Mean Reads per Cell (cellRanger style)", value = readsMean, .before = idx)
+d %>% write_tsv(paste0(params$sampleName, ".metrics.tsv"))
+d %>% pivot_wider(names_from = item, values_from= value) %>% 
     write_json(paste0(params$sampleName, ".metrics.json"), pretty=TRUE)
 ```
 
