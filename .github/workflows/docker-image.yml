@@ -1,9 +1,10 @@
 name: build docker image CI
 
 on:
-  push:
+  release:
+    types: [published]
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
   docker:

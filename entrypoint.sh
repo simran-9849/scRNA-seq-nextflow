@@ -12,7 +12,7 @@ set -euo pipefail
 # Temporarily disable strict mode and activate conda:
 set +euo pipefail
 source $(conda info --base)/etc/profile.d/conda.sh
-conda activate starscope_env
+conda activate starscope_scRNAseq_env
 
 # Re-enable strict mode:
 set -euo pipefail
