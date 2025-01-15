@@ -1,0 +1,13 @@
+[package]
+name = "summarize_bc_q30"
+version = "0.1.0"
+authors = ["Zhixia Xiao <obennoname@gmail.com>"]
+description = "Calculate percentage of base pair with Q30 from barcode and UMI"
+edition = "2021"
+
+[dependencies]
+bstr = "1.11.3"
+clap = { version = "4.5.26", features = ["derive"] }
+noodles = { version = "0.86.0", features = ["bam", "bgzf", "cram", "sam"] }
+noodles-bgzf = { version = "0.34.0", features = ["libdeflate"] }
+noodles-util = { version = "0.56.0", features = ["alignment"] }
