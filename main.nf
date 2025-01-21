@@ -123,7 +123,7 @@ workflow scRNAseq {
         ch_whitelist.toList()
     )
     ch_genome_bam       = STARSOLO.out.bam
-    ch_genome_bam_index = STARSOLO.out.bai
+    ch_genome_bam_index = STARSOLO.out.bamIndex
     ch_filteredDir      = STARSOLO.out.filteredDir
     ch_rawDir           = STARSOLO.out.rawDir
     ch_starsolo_summary = STARSOLO.out.summary_unique
@@ -285,7 +285,7 @@ workflow vdj_process {
         ch_whitelist.toList()
     )
     ch_genome_bam           = STARSOLO.out.bam
-    ch_genome_bam_index     = STARSOLO.out.bai
+    ch_genome_bam_index     = STARSOLO.out.bamIndex
     ch_starsolo_filteredDir = STARSOLO.out.filteredDir
     ch_starsolo_rawDir      = STARSOLO.out.rawDir
     ch_starsolo_summary     = STARSOLO.out.summary_unique

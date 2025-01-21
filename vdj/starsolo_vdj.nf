@@ -24,7 +24,7 @@ process STARSOLO_VDJ {
 
     output:
     tuple val(meta), path('*d.out.bam')                                                     , emit: bam
-    tuple val(meta), path('*d.out.bam.bai')                                                 , emit: bai
+    tuple val(meta), path('*d.out.bam.bai')                                                 , emit: bamIndex
     tuple val(meta), path('*Log.final.out')                                                 , emit: log_final
     tuple val(meta), path('*Log.out')                                                       , emit: log_out
     tuple val(meta), path('*Log.progress.out')                                              , emit: log_progress
@@ -120,7 +120,7 @@ process STARSOLO_VDJ {
 
     scriptString.push(
     """
-    samtools index ${prefix}.Aligned.sortedByCoord.out.bam
+    samtools index -c ${prefix}.Aligned.sortedByCoord.out.bam
     """.stripIndent()
     )
     if(meta.feature_types == "GEX"){

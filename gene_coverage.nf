@@ -3,7 +3,7 @@ process GENECOVERAGE {
     label 'process_medium'
 
     input:
-    tuple val(meta), path(bam), path(bai)
+    tuple val(meta), path(bam), path(bamIndex)
     path gtf
 
     output:
