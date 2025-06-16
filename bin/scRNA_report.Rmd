@@ -726,7 +726,7 @@ d <- starsolo_summary %>%
     add_row(item = "Reads Mapped to Exonic Regions", value = label_percent(0.01)(exon_ratio)) %>%
     add_row(item = "Reads Mapped to Intronic Regions", value = label_percent(0.01)(intron_ratio)) %>%
     add_row(item = "Reads Mapped to Intergenic Regions", value = label_percent(0.01)(intergenic_ratio)) %>%
-    add_row(item = "SampleID", value = params$sampleName, .before = 1)
+    add_row(item = "sampleID", value = params$sampleName, .before = 1)
 
 d <- d %>% 
     mutate(item = str_replace(item, "Mean Reads per Cell", "Mean Reads per Cell (STARsolo style)"))
