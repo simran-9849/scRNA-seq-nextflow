@@ -4,8 +4,6 @@ This pipeline uses **starsolo** (https://github.com/alexdobin/STAR/blob/master/d
 and **Seurat** package (https://satijalab.org/seurat/) as the core modules to process scRNA-seq
 data and generate a concise html report. The workflow was implemented by [**nextflow**](https://www.nextflow.io/).
 
-Please visit our documentation website for more details: https://starscope.netlify.app
-
 ## Compatible Data Type
 
 - 10X Genomics Chromium (https://www.10xgenomics.com/resources/datasets)
